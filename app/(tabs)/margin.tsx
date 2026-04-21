@@ -1,0 +1,111 @@
+import { StyleSheet, Text, View } from 'react-native';
+
+import { ProgressBar } from '@/components/ranger/ProgressBar';
+import { Screen } from '@/components/ranger/Screen';
+import { StatCard } from '@/components/ranger/StatCard';
+import { Accent, Brand, Ink, Radius } from '@/constants/theme';
+import { jpy, shortDate } from '@/lib/format';
+import { homeKpis, monthlyTrend, recentOrders } from '@/lib/mockData';
+
+const STATUS_LABEL = { pending: '未確定', confirmed: '確定', paid: '支払済' };
+const STATUS_COLOR = { pending: Accent.amber, confirmed: Accent.emerald, paid: Brand.navy };
+
+export default function MarginScreen() {
+  const pendingTotal   = recentOrders.filter(o => o.status !== 'paid').reduce((s, o) => s + o.rangerCommissionJpy, 0);
+  const paidTotal      = recentOrders.filter(o => o.status === 'paid').reduce((s, o) => s + o.rangerCommissionJpy, 0);
+  const maxTrend = Math.max(...monthlyTrend.map(m => m.sales));
+
+  return (
+    <Screen>
+      <Text style={styles.title}>マージン</Text>
+
+      {/* ヒーローカード */}
+      <View style={styles.hero}>
+        <Text style={styles.heroLabel}>今月見込み報酬</Text>
+        <Text style={styles.heroValue}>{jpy(homeKpis.estimatedMarginJpy)}</Text>
+        <Text style={styles.heroSub}>▲ {jpy(homeKpis.estimatedMarginDeltaJpy)}（前月比）</Text>
+      </View>
+
+      <View style={styles.grid}>
+        <StatCard label="未払予定"   value={jpy(pendingTotal)} sub="次回支払：月末" subTone="amber" style={{ flex: 1 }} />
+        <StatCard label="累計支払済" value={jpy(paidTotal + homeKpis.cumulativeMarginJpy)} sub="2026年度" style={{ flex: 1 }} />
+      </View>
+
+      {/* 売上推移 */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>月別売上推移</Text>
+        <View style={styles.chartRow}>
+          {monthlyTrend.map(m => (
+            <View key={m.month} style={styles.chartCol}>
+              <View style={styles.barWrap}>
+                <View style={[styles.bar, { height: (m.sales / maxTrend) * 120 }]} />
+              </View>
+              <Text style={styles.chartValue}>{Math.round(m.sales / 1000)}k</Text>
+              <Text style={styles.chartLabel}>{m.month.slice(-2)}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+
+      {/* 支払予定 */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>受注・報酬内訳</Text>
+        {recentOrders.map(o => (
+          <View key={o.id} style={styles.orderRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.orderName}>{o.productName}</Text>
+              <Text style={styles.orderCust}>{o.customerName}・{shortDate(o.orderedAt)}</Text>
+            </View>
+            <View style={{ alignItems: 'flex-end' }}>
+              <Text style={styles.orderAmt}>{jpy(o.rangerCommissionJpy)}</Text>
+              <Text style={[styles.orderStatus, { color: STATUS_COLOR[o.status] }]}>{STATUS_LABEL[o.status]}</Text>
+            </View>
+          </View>
+        ))}
+      </View>
+
+      {/* 目標進捗 */}
+      <View style={styles.card}>
+        <View style={styles.goalHeader}>
+          <Text style={styles.cardTitle}>今月の目標進捗</Text>
+          <Text style={styles.goalPct}>{Math.round(homeKpis.goalProgressPct * 100)}%</Text>
+        </View>
+        <ProgressBar progress={homeKpis.goalProgressPct} height={10} trackColor={Ink[100]} />
+        <Text style={styles.goalSub}>あと {jpy(homeKpis.remainingToGoalJpy)} で月間目標達成</Text>
+      </View>
+    </Screen>
+  );
+}
+
+const styles = StyleSheet.create({
+  title: { fontSize: 24, fontWeight: '800', color: Ink[900], marginBottom: 16 },
+
+  hero: {
+    backgroundColor: Brand.navy, borderRadius: Radius.xl, padding: 24, marginBottom: 12,
+  },
+  heroLabel: { color: 'rgba(255,255,255,0.7)', fontSize: 11, letterSpacing: 2, textTransform: 'uppercase' },
+  heroValue: { color: '#fff', fontSize: 40, fontWeight: '800', marginTop: 6 },
+  heroSub: { color: Accent.emeraldLight, marginTop: 8, fontSize: 13, fontWeight: '600' },
+
+  grid: { flexDirection: 'row', gap: 10, marginBottom: 12 },
+
+  card: { backgroundColor: '#fff', borderRadius: Radius.lg, padding: 18, borderWidth: 1, borderColor: Ink[100], marginBottom: 12 },
+  cardTitle: { fontSize: 14, fontWeight: '700', color: Ink[900], marginBottom: 14 },
+
+  chartRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
+  chartCol: { alignItems: 'center', flex: 1 },
+  barWrap: { height: 120, justifyContent: 'flex-end' },
+  bar: { width: 20, backgroundColor: Brand.navy, borderRadius: 4 },
+  chartValue: { fontSize: 10, color: Ink[700], marginTop: 6, fontWeight: '600' },
+  chartLabel: { fontSize: 9, color: Ink[500], marginTop: 2 },
+
+  orderRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Ink[100] },
+  orderName: { fontSize: 13, fontWeight: '600', color: Ink[900] },
+  orderCust: { fontSize: 11, color: Ink[500], marginTop: 2 },
+  orderAmt: { fontSize: 14, fontWeight: '700', color: Ink[900] },
+  orderStatus: { fontSize: 10, fontWeight: '700', marginTop: 2 },
+
+  goalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  goalPct: { fontSize: 18, fontWeight: '800', color: Brand.navy },
+  goalSub: { fontSize: 11, color: Ink[500], marginTop: 8 },
+});
