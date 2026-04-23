@@ -4,8 +4,9 @@ import { Alert, Platform, Pressable, StyleSheet, Text, View } from 'react-native
 import { Screen } from '@/components/ranger/Screen';
 import { Brand, Ink, Radius } from '@/constants/theme';
 import { signOut, useAuth } from '@/hooks/use-auth';
+import { useNotifications } from '@/hooks/use-notifications';
 import { useProfile } from '@/hooks/use-profile';
-import { notifications, rangerProfile } from '@/lib/mockData';
+import { rangerProfile } from '@/lib/mockData';
 
 function handleLogout() {
   if (Platform.OS === 'web') {
@@ -30,7 +31,8 @@ export default function MoreScreen() {
   const role = profile?.role ?? rangerProfile.rank;
   const email = profile?.email ?? session?.user.email ?? '';
 
-  const unread = notifications.filter(n => !n.read).length;
+  const { rows: notificationRows } = useNotifications(session);
+  const unread = notificationRows.filter((n) => !n.read_at).length;
   const items: Item[] = [
     { key: 'notifications', label: '通知',             sub: '受注・達成・アラート',   path: '/notifications', badge: unread },
     { key: 'ranking',       label: 'ランク・実績',      sub: '月間ランキング / バッジ', path: '/ranking' },

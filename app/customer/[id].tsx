@@ -6,7 +6,6 @@ import { Accent, Brand, Ink, Radius } from '@/constants/theme';
 import { deriveStatus, type DerivedStatus } from '@/hooks/use-customers';
 import { useCustomerDetail } from '@/hooks/use-customer-detail';
 import { daysSince, jpy } from '@/lib/format';
-import { products } from '@/lib/mockData';
 
 const STATUS_LABEL: Record<DerivedStatus, string> = { good: '好調', stall: '停滞', follow: '要フォロー' };
 const STATUS_COLOR: Record<DerivedStatus, string> = { good: Accent.emerald, stall: Accent.amber, follow: Accent.red };
@@ -35,9 +34,7 @@ export default function CustomerDetailScreen() {
 
   const status = deriveStatus(detail.last_ordered_at);
   const days = daysSince(detail.last_ordered_at) ?? 0;
-
-  // 推薦商品は一旦モックの fitScore 順（後で recommendations テーブルに差し替え）
-  const suggestions = [...products].sort((a, b) => (b.fitScore ?? 0) - (a.fitScore ?? 0)).slice(0, 3);
+  const suggestions = detail.recommendations;
 
   return (
     <Screen>
@@ -99,22 +96,28 @@ export default function CustomerDetailScreen() {
         </View>
       </View>
 
-      {/* 推薦商品（特許要件3） */}
+      {/* 推薦商品（特許要件③：fn_generate_recommendations が生成） */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>次の提案候補（適合度順）</Text>
-        {suggestions.map((s) => (
-          <View key={s.id} style={styles.suggestion}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.suggestName}>{s.name}</Text>
-              <Text style={styles.suggestPitch} numberOfLines={2}>
-                {s.pitch}
-              </Text>
+        {suggestions.length === 0 ? (
+          <Text style={styles.emptyInline}>推薦商品がまだ生成されていません</Text>
+        ) : (
+          suggestions.map((s) => (
+            <View key={s.id} style={styles.suggestion}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.suggestName}>{s.product_name}</Text>
+                {s.pitch_script && (
+                  <Text style={styles.suggestPitch} numberOfLines={2}>
+                    {s.pitch_script}
+                  </Text>
+                )}
+              </View>
+              <View style={styles.suggestScore}>
+                <Text style={styles.suggestScoreText}>{Math.round(s.score * 100)}%</Text>
+              </View>
             </View>
-            <View style={styles.suggestScore}>
-              <Text style={styles.suggestScoreText}>{Math.round((s.fitScore ?? 0) * 100)}%</Text>
-            </View>
-          </View>
-        ))}
+          ))
+        )}
       </View>
     </Screen>
   );

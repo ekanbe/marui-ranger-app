@@ -2,6 +2,15 @@ import { useEffect, useState } from 'react';
 
 import { supabase } from '@/lib/supabase';
 
+export type Recommendation = {
+  id: string;
+  score: number;
+  reason: string | null;
+  product_id: string;
+  product_name: string;
+  pitch_script: string | null;
+};
+
 export type CustomerDetail = {
   id: string;
   name: string;
@@ -14,6 +23,7 @@ export type CustomerDetail = {
   monthSalesJpy: number;
   totalSalesJpy: number;
   monthMarginJpy: number;
+  recommendations: Recommendation[];
 };
 
 const PAIN_LABEL: Record<string, string> = {
@@ -29,6 +39,13 @@ const PAIN_LABEL: Record<string, string> = {
 
 const PAIN_LABEL_FALLBACK = (key: string) => PAIN_LABEL[key] ?? key;
 
+type NestedRecommendation = {
+  id: string;
+  score: number | string;
+  reason: string | null;
+  products: { id: string; name: string | null; pitch_script: string | null } | null;
+};
+
 export function useCustomerDetail(customerId: string | undefined) {
   const [detail, setDetail] = useState<CustomerDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -42,7 +59,7 @@ export function useCustomerDetail(customerId: string | undefined) {
     let mounted = true;
 
     (async () => {
-      const [custRes, ordersRes] = await Promise.all([
+      const [custRes, ordersRes, recsRes] = await Promise.all([
         supabase
           .from('customers')
           .select(
@@ -55,12 +72,22 @@ export function useCustomerDetail(customerId: string | undefined) {
           .from('orders')
           .select('ordered_at, total_amount_jpy')
           .eq('customer_id', customerId),
+        supabase
+          .from('recommendations')
+          .select(
+            `id, score, reason,
+             products ( id, name, pitch_script )`
+          )
+          .eq('customer_id', customerId)
+          .order('score', { ascending: false })
+          .limit(3),
       ]);
 
       if (!mounted) return;
 
       if (custRes.error) console.warn('[useCustomerDetail cust]', custRes.error.message);
       if (ordersRes.error) console.warn('[useCustomerDetail orders]', ordersRes.error.message);
+      if (recsRes.error) console.warn('[useCustomerDetail recs]', recsRes.error.message);
 
       const cust = custRes.data as
         | {
@@ -88,6 +115,17 @@ export function useCustomerDetail(customerId: string | undefined) {
         .filter((a) => a.attribute_key === 'pain_point')
         .map((a) => PAIN_LABEL_FALLBACK(a.attribute_value));
 
+      const recommendations: Recommendation[] = ((recsRes.data ?? []) as unknown as NestedRecommendation[]).map(
+        (r) => ({
+          id: r.id,
+          score: Number(r.score ?? 0),
+          reason: r.reason,
+          product_id: r.products?.id ?? '',
+          product_name: r.products?.name ?? '-',
+          pitch_script: r.products?.pitch_script ?? null,
+        })
+      );
+
       setDetail({
         id: cust?.id ?? customerId,
         name: cust?.name ?? '',
@@ -100,6 +138,7 @@ export function useCustomerDetail(customerId: string | undefined) {
         monthSalesJpy: monthSales,
         totalSalesJpy: totalSales,
         monthMarginJpy: Math.round(monthSales * 0.02),
+        recommendations,
       });
       setLoading(false);
     })();
