@@ -1,5 +1,6 @@
 import { Image } from 'expo-image';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { router } from 'expo-router';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Screen } from '@/components/ranger/Screen';
 import { Accent, Brand, Ink, Radius } from '@/constants/theme';
@@ -23,7 +24,11 @@ export default function ProductsScreen() {
       ) : (
         <View style={{ gap: 14 }}>
           {products.map((p) => (
-            <View key={p.id} style={styles.card}>
+            <Pressable
+              key={p.id}
+              onPress={() => router.push({ pathname: '/product/[id]', params: { id: p.id } })}
+              style={styles.card}
+            >
               <View style={styles.top}>
                 {p.image_url ? (
                   <Image source={{ uri: p.image_url }} style={styles.image} contentFit="cover" />
@@ -64,7 +69,7 @@ export default function ProductsScreen() {
                   ))}
                 </View>
               )}
-            </View>
+            </Pressable>
           ))}
         </View>
       )}

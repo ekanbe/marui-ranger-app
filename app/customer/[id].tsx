@@ -5,14 +5,29 @@ import { Screen } from '@/components/ranger/Screen';
 import { Accent, Brand, Ink, Radius } from '@/constants/theme';
 import { deriveStatus, type DerivedStatus } from '@/hooks/use-customers';
 import { useCustomerDetail } from '@/hooks/use-customer-detail';
-import { daysSince, jpy } from '@/lib/format';
+import { useCustomerOrders } from '@/hooks/use-customer-orders';
+import { daysSince, jpy, shortDate } from '@/lib/format';
 
 const STATUS_LABEL: Record<DerivedStatus, string> = { good: '好調', stall: '停滞', follow: '要フォロー' };
 const STATUS_COLOR: Record<DerivedStatus, string> = { good: Accent.emerald, stall: Accent.amber, follow: Accent.red };
 
+const ORDER_STATUS_LABEL: Record<'pending' | 'confirmed' | 'shipped' | 'cancelled', string> = {
+  pending: '未確定',
+  confirmed: '確定',
+  shipped: '出荷済',
+  cancelled: '中止',
+};
+const ORDER_STATUS_COLOR: Record<'pending' | 'confirmed' | 'shipped' | 'cancelled', string> = {
+  pending: Accent.amber,
+  confirmed: Accent.emerald,
+  shipped: Brand.navy,
+  cancelled: Ink[500],
+};
+
 export default function CustomerDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { detail, loading } = useCustomerDetail(id);
+  const { orders } = useCustomerOrders(id, 10);
 
   if (loading) {
     return (
@@ -81,13 +96,21 @@ export default function CustomerDetailScreen() {
         </View>
       </View>
 
-      {/* 新規受注ボタン */}
-      <Pressable
-        onPress={() => router.push({ pathname: '/order-new/[customerId]', params: { customerId: detail.id } })}
-        style={styles.orderButton}
-      >
-        <Text style={styles.orderButtonText}>＋ この店舗に受注入力</Text>
-      </Pressable>
+      {/* アクションボタン */}
+      <View style={styles.actionRow}>
+        <Pressable
+          onPress={() => router.push({ pathname: '/order-new/[customerId]', params: { customerId: detail.id } })}
+          style={[styles.actionButton, styles.actionButtonPrimary]}
+        >
+          <Text style={styles.actionButtonText}>＋ 受注入力</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => router.push({ pathname: '/customer-edit/[id]', params: { id: detail.id } })}
+          style={[styles.actionButton, styles.actionButtonSecondary]}
+        >
+          <Text style={[styles.actionButtonText, { color: Brand.navy }]}>編集</Text>
+        </Pressable>
+      </View>
 
       {/* 発注サマリー */}
       <View style={styles.section}>
@@ -102,6 +125,40 @@ export default function CustomerDetailScreen() {
               : '継続順調。次の提案ネタ候補は以下'}
           </Text>
         </View>
+      </View>
+
+      {/* 直近の受注履歴 */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>直近の受注（{orders.length}件）</Text>
+        {orders.length === 0 ? (
+          <Text style={styles.emptyInline}>まだ受注がありません</Text>
+        ) : (
+          <View style={{ gap: 8 }}>
+            {orders.map((o) => (
+              <View key={o.id} style={styles.orderRow}>
+                <View style={styles.orderTopRow}>
+                  <Text style={styles.orderDate}>{shortDate(o.ordered_at)}</Text>
+                  <View
+                    style={[
+                      styles.orderStatusPill,
+                      { backgroundColor: `${ORDER_STATUS_COLOR[o.status]}18` },
+                    ]}
+                  >
+                    <Text style={[styles.orderStatusText, { color: ORDER_STATUS_COLOR[o.status] }]}>
+                      {ORDER_STATUS_LABEL[o.status]}
+                    </Text>
+                  </View>
+                  <Text style={styles.orderAmount}>{jpy(o.total_amount_jpy)}</Text>
+                </View>
+                {o.items.map((item, idx) => (
+                  <Text key={idx} style={styles.orderItemText}>
+                    ・{item.product_name} × {item.quantity.toLocaleString()}
+                  </Text>
+                ))}
+              </View>
+            ))}
+          </View>
+        )}
       </View>
 
       {/* 推薦商品（特許要件③：fn_generate_recommendations が生成） */}
@@ -150,14 +207,16 @@ const styles = StyleSheet.create({
   section: { marginBottom: 18 },
   sectionTitle: { fontSize: 13, fontWeight: '700', color: Ink[700], marginBottom: 10 },
 
-  orderButton: {
-    backgroundColor: Brand.navy,
+  actionRow: { flexDirection: 'row', gap: 8, marginBottom: 18 },
+  actionButton: {
+    flex: 1,
     borderRadius: Radius.md,
     paddingVertical: 14,
     alignItems: 'center',
-    marginBottom: 18,
   },
-  orderButtonText: { color: '#fff', fontSize: 14, fontWeight: '700', letterSpacing: 1 },
+  actionButtonPrimary: { backgroundColor: Brand.navy, flex: 2 },
+  actionButtonSecondary: { backgroundColor: '#fff', borderWidth: 1, borderColor: Brand.navy },
+  actionButtonText: { color: '#fff', fontSize: 14, fontWeight: '700', letterSpacing: 1 },
 
   painRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   painTag: { backgroundColor: 'rgba(239,68,68,0.08)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 },
@@ -183,4 +242,18 @@ const styles = StyleSheet.create({
   suggestPitch: { fontSize: 11, color: Ink[500], marginTop: 4, lineHeight: 15 },
   suggestScore: { backgroundColor: Brand.navy, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 },
   suggestScoreText: { color: '#fff', fontWeight: '800', fontSize: 12 },
+
+  orderRow: {
+    backgroundColor: '#fff',
+    padding: 12,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: Ink[100],
+  },
+  orderTopRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 },
+  orderDate: { fontSize: 11, color: Ink[500], fontWeight: '600', minWidth: 60 },
+  orderStatusPill: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999 },
+  orderStatusText: { fontSize: 10, fontWeight: '700' },
+  orderAmount: { fontSize: 13, fontWeight: '700', color: Ink[900], flex: 1, textAlign: 'right' },
+  orderItemText: { fontSize: 11, color: Ink[700], marginTop: 2 },
 });

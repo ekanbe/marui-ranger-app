@@ -15,6 +15,7 @@ const STATUS_COLOR: Record<DerivedStatus, string> = { good: Accent.emerald, stal
 export default function CustomersScreen() {
   const { customers, loading } = useCustomers();
   const [filter, setFilter] = useState<Filter>('all');
+  const [bizFilter, setBizFilter] = useState<string>('all');
   const [query, setQuery] = useState('');
 
   const enriched = useMemo(
@@ -36,10 +37,19 @@ export default function CustomersScreen() {
     [enriched]
   );
 
+  const bizTypes = useMemo(() => {
+    const set = new Set<string>();
+    enriched.forEach((c) => {
+      if (c.business_type) set.add(c.business_type);
+    });
+    return Array.from(set).sort();
+  }, [enriched]);
+
   const list = enriched.filter(
     (c) =>
       (filter === 'all' || c.derivedStatus === filter) &&
-      (query === '' || `${c.name}${c.branch_name ?? ''}`.includes(query))
+      (bizFilter === 'all' || c.business_type === bizFilter) &&
+      (query === '' || `${c.name}${c.branch_name ?? ''}${c.address ?? ''}`.includes(query))
   );
 
   return (
@@ -74,7 +84,7 @@ export default function CustomersScreen() {
           const active = filter === k;
           return (
             <Pressable
-              key={k}
+              key={`s-${k}`}
               onPress={() => setFilter(k as Filter)}
               style={[styles.filterBtn, active && styles.filterBtnActive]}
             >
@@ -91,6 +101,31 @@ export default function CustomersScreen() {
           );
         })}
       </ScrollView>
+
+      {bizTypes.length > 0 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.filterScroll}
+          contentContainerStyle={{ gap: 8 }}
+        >
+          <Pressable
+            onPress={() => setBizFilter('all')}
+            style={[styles.bizBtn, bizFilter === 'all' && styles.bizBtnActive]}
+          >
+            <Text style={[styles.bizText, bizFilter === 'all' && styles.bizTextActive]}>業種: すべて</Text>
+          </Pressable>
+          {bizTypes.map((t) => (
+            <Pressable
+              key={`b-${t}`}
+              onPress={() => setBizFilter(bizFilter === t ? 'all' : t)}
+              style={[styles.bizBtn, bizFilter === t && styles.bizBtnActive]}
+            >
+              <Text style={[styles.bizText, bizFilter === t && styles.bizTextActive]}>{t}</Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+      )}
 
       {loading ? (
         <View style={styles.loadingBox}>
@@ -180,6 +215,18 @@ const styles = StyleSheet.create({
   filterBtnActive: { backgroundColor: Brand.navy, borderColor: Brand.navy },
   filterText: { fontSize: 12, color: Ink[700], fontWeight: '600' },
   filterTextActive: { color: '#fff' },
+
+  bizBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: Ink[100],
+  },
+  bizBtnActive: { backgroundColor: Brand.gold, borderColor: Brand.gold },
+  bizText: { fontSize: 11, color: Ink[700], fontWeight: '500' },
+  bizTextActive: { color: '#fff', fontWeight: '700' },
 
   loadingBox: { paddingVertical: 48, alignItems: 'center' },
   emptyBox: { paddingVertical: 48, alignItems: 'center' },

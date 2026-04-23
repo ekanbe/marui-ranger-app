@@ -6,6 +6,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import 'react-native-reanimated';
 
+import { ErrorBoundary } from '@/components/ranger/ErrorBoundary';
 import { Brand } from '@/constants/theme';
 import { useAuth } from '@/hooks/use-auth';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -47,19 +48,23 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+        <ErrorBoundary>
         <AuthGate>
           <Stack>
             <Stack.Screen name="login"                    options={{ headerShown: false }} />
             <Stack.Screen name="(tabs)"                   options={{ headerShown: false }} />
             <Stack.Screen name="customer/[id]"            options={{ title: '顧客詳細' }} />
             <Stack.Screen name="customer-new"             options={{ title: '新規顧客' }} />
+            <Stack.Screen name="customer-edit/[id]"       options={{ title: '顧客編集' }} />
             <Stack.Screen name="order-new/[customerId]"   options={{ title: '新規受注' }} />
+            <Stack.Screen name="product/[id]"             options={{ title: '商品詳細' }} />
             <Stack.Screen name="notifications"            options={{ title: '通知' }} />
             <Stack.Screen name="ranking"                  options={{ title: 'ランキング' }} />
             <Stack.Screen name="showroom"                 options={{ title: 'ショールーム' }} />
             <Stack.Screen name="admin"                    options={{ title: '管理者ダッシュボード' }} />
           </Stack>
         </AuthGate>
+        </ErrorBoundary>
         <StatusBar style="auto" />
       </ThemeProvider>
     </SafeAreaProvider>
