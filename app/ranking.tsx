@@ -21,7 +21,7 @@ export default function RankingScreen() {
   const myRow = rows.find((r) => r.isMe);
 
   return (
-    <Screen>
+    <Screen back>
       <Text style={styles.title}>ランク・実績</Text>
 
       {/* 自分のランク ヒーロー */}
@@ -32,7 +32,9 @@ export default function RankingScreen() {
         style={{ marginBottom: 18 }}
       >
         <View style={styles.rankRow}>
-          <Badge label={rankLabel(myRow?.current_rank)} tone={(myRow?.current_rank as any) ?? 'bronze'} size="md" />
+          <View style={styles.rankOnHero}>
+            <Text style={styles.rankOnHeroText}>{rankLabel(myRow?.current_rank)}</Text>
+          </View>
           <Text style={styles.rankPos}>#{myRow?.rank ?? '-'}</Text>
         </View>
       </HeroCard>
@@ -91,6 +93,13 @@ const styles = StyleSheet.create({
   title: { fontSize: 24, fontWeight: '800', color: Ink[900], marginBottom: 16, letterSpacing: -0.3 },
 
   rankRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 12 },
+  rankOnHero: {
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  rankOnHeroText: { color: '#7C5C1E', fontSize: 12, fontWeight: '900', letterSpacing: 0.5 },
   rankPos: { color: '#fff', fontSize: 28, fontWeight: '900' },
 
   badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 22 },

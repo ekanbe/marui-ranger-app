@@ -55,7 +55,7 @@ export default function NotificationsScreen() {
   const list = filter === 'unread' ? rows.filter((n) => !n.read_at) : rows;
 
   return (
-    <Screen>
+    <Screen back>
       <View style={styles.header}>
         <View>
           <Text style={styles.title}>通知</Text>

@@ -5,6 +5,7 @@ import { Alert, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'r
 
 import { Screen } from '@/components/ranger/Screen';
 import { Avatar } from '@/components/ui/Avatar';
+import { AvatarCropper } from '@/components/ui/AvatarCropper';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -16,6 +17,8 @@ import { useAuth } from '@/hooks/use-auth';
 import { useProfile } from '@/hooks/use-profile';
 import { supabase } from '@/lib/supabase';
 
+const isWeb = Platform.OS === 'web';
+
 export default function ProfileEditScreen() {
   const { session } = useAuth();
   const { profile, loading, reload } = useProfile(session);
@@ -25,6 +28,9 @@ export default function ProfileEditScreen() {
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Web用: クロップ前の画像source
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
 
   useEffect(() => {
     if (profile) {
@@ -44,15 +50,20 @@ export default function ProfileEditScreen() {
 
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
-        allowsEditing: true,
+        allowsEditing: !isWeb, // Web では自前クロッパーを使う
         aspect: [1, 1],
-        quality: 0.85,
+        quality: 0.92,
         base64: false,
       });
 
       if (result.canceled || !result.assets?.[0]) return;
       const asset = result.assets[0];
-      await uploadImage(asset.uri, asset.mimeType);
+
+      if (isWeb) {
+        setCropSrc(asset.uri);
+      } else {
+        await uploadFromUri(asset.uri, asset.mimeType);
+      }
     } catch (e: any) {
       setError(e?.message ?? '画像の選択に失敗しました');
     }
@@ -68,19 +79,24 @@ export default function ProfileEditScreen() {
       }
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ['images'],
-        allowsEditing: true,
+        allowsEditing: !isWeb,
         aspect: [1, 1],
-        quality: 0.85,
+        quality: 0.92,
       });
       if (result.canceled || !result.assets?.[0]) return;
       const asset = result.assets[0];
-      await uploadImage(asset.uri, asset.mimeType);
+
+      if (isWeb) {
+        setCropSrc(asset.uri);
+      } else {
+        await uploadFromUri(asset.uri, asset.mimeType);
+      }
     } catch (e: any) {
       setError(e?.message ?? 'カメラ起動に失敗しました');
     }
   }
 
-  async function uploadImage(uri: string, mimeType?: string) {
+  async function uploadFromUri(uri: string, mimeType?: string) {
     if (!session) return;
     setUploading(true);
     setError(null);
@@ -88,16 +104,27 @@ export default function ProfileEditScreen() {
     try {
       const response = await fetch(uri);
       const blob = await response.blob();
+      await uploadBlob(blob, mimeType);
+    } catch (e: any) {
+      setError(e?.message ?? 'アップロードに失敗しました');
+    } finally {
+      setUploading(false);
+    }
+  }
 
-      const ext = mimeType?.includes('png') ? 'png' : 'jpg';
+  async function uploadBlob(blob: Blob, mimeType?: string) {
+    if (!session) return;
+    setUploading(true);
+    setError(null);
+
+    try {
+      const ext = (mimeType ?? blob.type).includes('png') ? 'png' : 'jpg';
+      const contentType = ext === 'png' ? 'image/png' : 'image/jpeg';
       const path = `${session.user.id}/avatar-${Date.now()}.${ext}`;
 
       const { error: upErr } = await supabase.storage
         .from('avatars')
-        .upload(path, blob, {
-          contentType: mimeType ?? 'image/jpeg',
-          upsert: true,
-        });
+        .upload(path, blob, { contentType, upsert: true });
 
       if (upErr) throw upErr;
 
@@ -107,12 +134,22 @@ export default function ProfileEditScreen() {
       setAvatarUrl(publicUrl);
     } catch (e: any) {
       setError(e?.message ?? 'アップロードに失敗しました');
+      throw e;
     } finally {
       setUploading(false);
     }
   }
 
-  async function removeAvatar() {
+  async function handleCropConfirm(blob: Blob) {
+    try {
+      await uploadBlob(blob, 'image/jpeg');
+      setCropSrc(null);
+    } catch {
+      // error は uploadBlob 内で set 済み
+    }
+  }
+
+  function removeAvatar() {
     setAvatarUrl(null);
   }
 
@@ -150,7 +187,7 @@ export default function ProfileEditScreen() {
 
   if (loading || !profile) {
     return (
-      <Screen>
+      <Screen back>
         <View style={{ gap: 12 }}>
           <ShimmerCard />
           <ShimmerCard />
@@ -159,10 +196,29 @@ export default function ProfileEditScreen() {
     );
   }
 
+  // Web: クロップ中
+  if (isWeb && cropSrc) {
+    return (
+      <Screen back>
+        <Text style={styles.title}>プロフィール写真</Text>
+        <Text style={styles.sub}>アイコンに表示する範囲を選んでください</Text>
+        <View style={{ marginTop: 16 }}>
+          <AvatarCropper
+            imageSrc={cropSrc}
+            onCancel={() => setCropSrc(null)}
+            onConfirm={handleCropConfirm}
+            submitting={uploading}
+          />
+        </View>
+        {error ? <Text style={styles.error}>エラー: {error}</Text> : null}
+      </Screen>
+    );
+  }
+
   const canSave = displayName.trim().length > 0 && !saving && !uploading;
 
   return (
-    <Screen>
+    <Screen back>
       <Text style={styles.title}>プロフィール編集</Text>
       <Text style={styles.sub}>あなたの情報を更新できます</Text>
 
@@ -199,6 +255,12 @@ export default function ProfileEditScreen() {
             <Text style={styles.removeText}>写真を削除</Text>
           </Pressable>
         ) : null}
+
+        <Text style={styles.hint}>
+          {isWeb
+            ? '選択後、範囲を調整する画面が開きます'
+            : '画像選択時にネイティブのトリミング画面が開きます'}
+        </Text>
       </Card>
 
       {/* 名前編集 */}
@@ -262,6 +324,7 @@ const styles = StyleSheet.create({
 
   avatarActions: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', justifyContent: 'center' },
   removeText: { color: Appetite.ember, fontSize: 12, fontWeight: '700' },
+  hint: { fontSize: 10, color: Ink[400], marginTop: 12, textAlign: 'center' },
 
   input: {
     backgroundColor: '#fff',

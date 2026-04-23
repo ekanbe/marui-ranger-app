@@ -52,18 +52,19 @@ export default function RootLayout() {
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
         <ErrorBoundary>
         <AuthGate>
-          <Stack>
-            <Stack.Screen name="login"                    options={{ headerShown: false }} />
-            <Stack.Screen name="(tabs)"                   options={{ headerShown: false }} />
-            <Stack.Screen name="customer/[id]"            options={{ title: '顧客詳細' }} />
-            <Stack.Screen name="customer-new"             options={{ title: '新規顧客' }} />
-            <Stack.Screen name="customer-edit/[id]"       options={{ title: '顧客編集' }} />
-            <Stack.Screen name="order-new/[customerId]"   options={{ title: '新規受注' }} />
-            <Stack.Screen name="product/[id]"             options={{ title: '商品詳細' }} />
-            <Stack.Screen name="ranger/[id]"              options={{ title: 'レンジャー詳細' }} />
-            <Stack.Screen name="notifications"            options={{ title: '通知' }} />
-            <Stack.Screen name="ranking"                  options={{ title: 'ランキング' }} />
-            <Stack.Screen name="showroom"                 options={{ title: 'ショールーム' }} />
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="login" />
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="customer/[id]" />
+            <Stack.Screen name="customer-new" />
+            <Stack.Screen name="customer-edit/[id]" />
+            <Stack.Screen name="order-new/[customerId]" />
+            <Stack.Screen name="product/[id]" />
+            <Stack.Screen name="ranger/[id]" />
+            <Stack.Screen name="notifications" />
+            <Stack.Screen name="ranking" />
+            <Stack.Screen name="showroom" />
+            <Stack.Screen name="profile-edit" />
           </Stack>
         </AuthGate>
         </ErrorBoundary>

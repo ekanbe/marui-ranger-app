@@ -301,8 +301,8 @@ export default function HomeScreen() {
           label="今月の見込みマージン"
           value={jpy(k.estimatedMarginJpy)}
           tone="emerald"
-          trend="up"
-          delta={`▲ ${jpy(k.estimatedMarginDeltaJpy)}`}
+          trend={k.estimatedMarginDeltaJpy >= 0 ? 'up' : 'down'}
+          delta={`${jpy(Math.abs(k.estimatedMarginDeltaJpy))} 前月比`}
           style={styles.gridItem}
         />
         <KpiCard
@@ -325,8 +325,8 @@ export default function HomeScreen() {
           value={`${k.newOrdersCount}`}
           unit="件"
           tone="ember"
-          trend="up"
-          delta={`▲ ${k.newOrdersDelta} 件`}
+          trend={k.newOrdersDelta >= 0 ? 'up' : 'down'}
+          delta={`${Math.abs(k.newOrdersDelta)} 件 前月比`}
           style={styles.gridItem}
         />
       </View>

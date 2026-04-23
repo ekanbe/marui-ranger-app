@@ -110,7 +110,7 @@ export default function LoginScreen() {
               {loading ? (
                 <ActivityIndicator color={Brand.navy} />
               ) : (
-                <Text style={styles.buttonText}>ログイン →</Text>
+                <Text style={[styles.buttonText, (!email || !password) && styles.buttonTextDisabled]}>ログイン →</Text>
               )}
             </Pressable>
           </View>
@@ -200,8 +200,13 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 6,
   },
-  buttonDisabled: { opacity: 0.4 },
+  buttonDisabled: {
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
   buttonText: { color: Brand.navyDark, fontWeight: '900', fontSize: 15, letterSpacing: 2 },
+  buttonTextDisabled: { color: 'rgba(255,255,255,0.5)' },
 
   footer: { color: 'rgba(255,255,255,0.3)', fontSize: 10, textAlign: 'center', letterSpacing: 2 },
 });

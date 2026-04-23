@@ -41,7 +41,7 @@ export default function CustomerDetailScreen() {
 
   if (loading) {
     return (
-      <Screen>
+      <Screen back>
         <View style={{ gap: 12 }}>
           <ShimmerCard />
           <ShimmerCard />
@@ -52,7 +52,7 @@ export default function CustomerDetailScreen() {
 
   if (!detail) {
     return (
-      <Screen>
+      <Screen back>
         <Text style={styles.notFound}>顧客が見つかりません</Text>
       </Screen>
     );
@@ -63,7 +63,7 @@ export default function CustomerDetailScreen() {
   const suggestions = detail.recommendations;
 
   return (
-    <Screen>
+    <Screen back>
       {/* ヘッダ */}
       <View style={{ marginBottom: 16 }}>
         <Badge label={STATUS_LABEL[status]} tone={STATUS_TONE[status]} size="md" dot />

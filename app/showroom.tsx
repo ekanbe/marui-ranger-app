@@ -41,7 +41,7 @@ export default function ShowroomScreen() {
   const past = items.filter((s) => s.status === 'visited');
 
   return (
-    <Screen>
+    <Screen back>
       <Text style={styles.title}>ショールーム</Text>
       <Text style={styles.sub}>恵比寿・マルイ物産ショールーム</Text>
 

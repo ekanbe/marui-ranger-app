@@ -19,7 +19,7 @@ export default function ProductDetailScreen() {
 
   if (loading) {
     return (
-      <Screen>
+      <Screen back>
         <View style={{ gap: 12 }}>
           <ShimmerCard />
           <ShimmerCard />
@@ -30,14 +30,14 @@ export default function ProductDetailScreen() {
 
   if (!detail) {
     return (
-      <Screen>
+      <Screen back>
         <Text style={styles.notFound}>商品が見つかりません</Text>
       </Screen>
     );
   }
 
   return (
-    <Screen>
+    <Screen back>
       {/* ヒーロー：商品画像を前面に */}
       <View style={styles.hero}>
         <View style={styles.imageWrap}>

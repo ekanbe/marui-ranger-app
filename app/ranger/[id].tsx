@@ -30,7 +30,7 @@ export default function RangerDetailScreen() {
 
   if (loading) {
     return (
-      <Screen>
+      <Screen back>
         <View style={{ gap: 12 }}>
           <ShimmerCard />
           <ShimmerCard />
@@ -41,7 +41,7 @@ export default function RangerDetailScreen() {
 
   if (!detail) {
     return (
-      <Screen>
+      <Screen back>
         <Text style={styles.notFound}>レンジャーが見つかりません</Text>
       </Screen>
     );
@@ -50,7 +50,7 @@ export default function RangerDetailScreen() {
   const remainingToGoal = Math.max(0, detail.monthly_goal_jpy - detail.thisMonthSalesJpy);
 
   return (
-    <Screen>
+    <Screen back>
       {/* プロフィールヘッダー */}
       <View style={styles.header}>
         <Avatar name={detail.display_name} imageUrl={detail.avatar_url} size="xl" />

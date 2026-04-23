@@ -98,7 +98,7 @@ export default function NewCustomerScreen() {
   const canSubmit = name.trim().length > 0 && !submitting;
 
   return (
-    <Screen>
+    <Screen back>
       <Text style={styles.title}>新規顧客登録</Text>
       <Text style={styles.sub}>担当店舗として登録します</Text>
 

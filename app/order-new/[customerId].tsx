@@ -94,7 +94,7 @@ export default function NewOrderScreen() {
 
   if (cLoading || pLoading) {
     return (
-      <Screen>
+      <Screen back>
         <View style={{ gap: 12 }}>
           <ShimmerCard />
           <ShimmerCard />
@@ -104,7 +104,7 @@ export default function NewOrderScreen() {
   }
 
   return (
-    <Screen>
+    <Screen back>
       <Text style={styles.title}>新規受注</Text>
       {detail ? (
         <View style={styles.customerBanner}>

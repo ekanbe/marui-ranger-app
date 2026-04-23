@@ -63,7 +63,7 @@ export default function CustomerEditScreen() {
 
   if (loading) {
     return (
-      <Screen>
+      <Screen back>
         <View style={{ gap: 12 }}>
           <ShimmerCard />
           <ShimmerCard />
@@ -75,7 +75,7 @@ export default function CustomerEditScreen() {
   const canSubmit = name.trim().length > 0 && !submitting;
 
   return (
-    <Screen>
+    <Screen back>
       <Text style={styles.title}>顧客情報を編集</Text>
       <Text style={styles.sub}>{detail?.customer_code ?? '—'}</Text>
 
