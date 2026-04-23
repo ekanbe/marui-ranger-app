@@ -1,5 +1,5 @@
-import { useLocalSearchParams } from 'expo-router';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { router, useLocalSearchParams } from 'expo-router';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Screen } from '@/components/ranger/Screen';
 import { Accent, Brand, Ink, Radius } from '@/constants/theme';
@@ -81,6 +81,14 @@ export default function CustomerDetailScreen() {
         </View>
       </View>
 
+      {/* 新規受注ボタン */}
+      <Pressable
+        onPress={() => router.push({ pathname: '/order-new/[customerId]', params: { customerId: detail.id } })}
+        style={styles.orderButton}
+      >
+        <Text style={styles.orderButtonText}>＋ この店舗に受注入力</Text>
+      </Pressable>
+
       {/* 発注サマリー */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>発注ステータス</Text>
@@ -141,6 +149,15 @@ const styles = StyleSheet.create({
 
   section: { marginBottom: 18 },
   sectionTitle: { fontSize: 13, fontWeight: '700', color: Ink[700], marginBottom: 10 },
+
+  orderButton: {
+    backgroundColor: Brand.navy,
+    borderRadius: Radius.md,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginBottom: 18,
+  },
+  orderButtonText: { color: '#fff', fontSize: 14, fontWeight: '700', letterSpacing: 1 },
 
   painRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   painTag: { backgroundColor: 'rgba(239,68,68,0.08)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 },

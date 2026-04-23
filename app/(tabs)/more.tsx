@@ -33,10 +33,12 @@ export default function MoreScreen() {
 
   const { rows: notificationRows } = useNotifications(session);
   const unread = notificationRows.filter((n) => !n.read_at).length;
+  const isAdmin = profile?.role === 'admin';
   const items: Item[] = [
     { key: 'notifications', label: '通知',             sub: '受注・達成・アラート',   path: '/notifications', badge: unread },
     { key: 'ranking',       label: 'ランク・実績',      sub: '月間ランキング / バッジ', path: '/ranking' },
     { key: 'showroom',      label: 'ショールーム',      sub: '招待・来場管理',         path: '/showroom' },
+    ...(isAdmin ? [{ key: 'admin', label: '管理者ダッシュボード', sub: '全レンジャー・全顧客サマリー', path: '/admin' }] : []),
   ];
 
   return (

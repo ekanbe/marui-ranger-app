@@ -9,6 +9,7 @@ import 'react-native-reanimated';
 import { Brand } from '@/constants/theme';
 import { useAuth } from '@/hooks/use-auth';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { usePushToken } from '@/hooks/use-push-token';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -18,6 +19,7 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   const { session, loading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
+  usePushToken(session);
 
   useEffect(() => {
     if (loading) return;
@@ -47,12 +49,15 @@ export default function RootLayout() {
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
         <AuthGate>
           <Stack>
-            <Stack.Screen name="login"         options={{ headerShown: false }} />
-            <Stack.Screen name="(tabs)"        options={{ headerShown: false }} />
-            <Stack.Screen name="customer/[id]" options={{ title: '顧客詳細' }} />
-            <Stack.Screen name="notifications" options={{ title: '通知' }} />
-            <Stack.Screen name="ranking"       options={{ title: 'ランキング' }} />
-            <Stack.Screen name="showroom"      options={{ title: 'ショールーム' }} />
+            <Stack.Screen name="login"                    options={{ headerShown: false }} />
+            <Stack.Screen name="(tabs)"                   options={{ headerShown: false }} />
+            <Stack.Screen name="customer/[id]"            options={{ title: '顧客詳細' }} />
+            <Stack.Screen name="customer-new"             options={{ title: '新規顧客' }} />
+            <Stack.Screen name="order-new/[customerId]"   options={{ title: '新規受注' }} />
+            <Stack.Screen name="notifications"            options={{ title: '通知' }} />
+            <Stack.Screen name="ranking"                  options={{ title: 'ランキング' }} />
+            <Stack.Screen name="showroom"                 options={{ title: 'ショールーム' }} />
+            <Stack.Screen name="admin"                    options={{ title: '管理者ダッシュボード' }} />
           </Stack>
         </AuthGate>
         <StatusBar style="auto" />

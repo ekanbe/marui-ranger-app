@@ -46,7 +46,7 @@ export default function CustomersScreen() {
     <Screen>
       <View style={styles.header}>
         <Text style={styles.title}>担当店舗</Text>
-        <Pressable style={styles.addBtn}>
+        <Pressable style={styles.addBtn} onPress={() => router.push('/customer-new')}>
           <Text style={styles.addBtnText}>+</Text>
         </Pressable>
       </View>
