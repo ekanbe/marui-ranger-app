@@ -8,7 +8,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useCommissions, type CommissionStatus } from '@/hooks/use-commissions';
 import { useHomeKpis } from '@/hooks/use-home-kpis';
 import { jpy, shortDate } from '@/lib/format';
-import { homeKpis, monthlyTrend } from '@/lib/mockData';
+import { homeKpis } from '@/lib/mockData';
 
 const STATUS_LABEL: Record<CommissionStatus, string> = { pending: '未確定', confirmed: '確定', paid: '支払済' };
 const STATUS_COLOR: Record<CommissionStatus, string> = {
@@ -31,7 +31,8 @@ export default function MarginScreen() {
   const pendingTotal = commissions.filter((c) => c.status !== 'paid').reduce((s, c) => s + c.ranger_amount_jpy, 0);
   const paidTotal = commissions.filter((c) => c.status === 'paid').reduce((s, c) => s + c.ranger_amount_jpy, 0);
 
-  const maxTrend = Math.max(...monthlyTrend.map((m) => m.sales));
+  const monthlyTrend = kpis?.monthlyTrend ?? [];
+  const maxTrend = Math.max(...monthlyTrend.map((m) => m.sales), 1);
 
   return (
     <Screen>

@@ -15,6 +15,7 @@ export type HomeKpis = {
   monthlyGoalJpy: number;
   goalProgressPct: number;
   remainingToGoalJpy: number;
+  monthlyTrend: { month: string; sales: number }[];
 };
 
 type SummaryRow = {
@@ -73,6 +74,19 @@ export function useHomeKpis(session: Session | null) {
       const cumulativeMargin = rows.reduce((s, r) => s + Number(r.ranger_commission_jpy ?? 0), 0);
       const monthlyGoal = Number((goal.data as { monthly_goal_jpy?: number } | null)?.monthly_goal_jpy ?? 0);
 
+      // 過去6ヶ月のトレンド（古→新）
+      const monthlyTrend = rows
+        .filter((r) => r.month)
+        .slice(0, 6)
+        .reverse()
+        .map((r) => {
+          const d = new Date(r.month as string);
+          return {
+            month: `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}`,
+            sales: Number(r.sales_jpy ?? 0),
+          };
+        });
+
       setKpis({
         monthSalesJpy: monthSales,
         prevMonthSalesJpy: prevSales,
@@ -85,6 +99,7 @@ export function useHomeKpis(session: Session | null) {
         monthlyGoalJpy: monthlyGoal,
         goalProgressPct: monthlyGoal > 0 ? Math.min(1, monthSales / monthlyGoal) : 0,
         remainingToGoalJpy: Math.max(0, monthlyGoal - monthSales),
+        monthlyTrend,
       });
       setLoading(false);
     })();

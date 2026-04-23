@@ -1,13 +1,11 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { Screen } from '@/components/ranger/Screen';
 import { Accent, Brand, Ink, Radius } from '@/constants/theme';
 import { useAuth } from '@/hooks/use-auth';
-import { useHomeKpis } from '@/hooks/use-home-kpis';
-import { useMyRanger } from '@/hooks/use-my-ranger';
-import { useProfile } from '@/hooks/use-profile';
+import { useRangerBadges } from '@/hooks/use-ranger-badges';
+import { useRanking } from '@/hooks/use-ranking';
 import { jpy } from '@/lib/format';
-import { badges, rangerProfile, rankings } from '@/lib/mockData';
 
 const RANK_COLOR: Record<string, string> = {
   platinum: '#8B7FB3',
@@ -18,22 +16,9 @@ const RANK_COLOR: Record<string, string> = {
 
 export default function RankingScreen() {
   const { session } = useAuth();
-  const { profile } = useProfile(session);
-  const { ranger } = useMyRanger(session);
-  const { kpis } = useHomeKpis(session);
-
-  const myName = profile?.display_name ?? rangerProfile.name;
-  const myRankLabel = ranger?.current_rank ?? rangerProfile.rank;
-  const myScore = kpis?.monthSalesJpy ?? 0;
-
-  // 自分のエントリを実データに差し替え、スコア降順で順位再計算
-  const merged = rankings.map((r) =>
-    r.me
-      ? { ...r, name: `${myName} (あなた)`, score: myScore, rankLabel: myRankLabel }
-      : r
-  );
-  const ranked = [...merged].sort((a, b) => b.score - a.score).map((r, i) => ({ ...r, rank: i + 1 }));
-  const myRank = ranked.find((r) => r.me);
+  const { rows, loading } = useRanking(session);
+  const { badges } = useRangerBadges(session);
+  const myRow = rows.find((r) => r.isMe);
 
   return (
     <Screen>
@@ -44,16 +29,16 @@ export default function RankingScreen() {
         <View style={{ flex: 1 }}>
           <Text style={styles.myLabel}>あなたの今月</Text>
           <View style={styles.rankRow}>
-            <View style={[styles.rankPill, { backgroundColor: RANK_COLOR[myRankLabel] ?? Ink[500] }]}>
-              <Text style={styles.rankPillText}>{myRankLabel.toUpperCase()}</Text>
+            <View style={[styles.rankPill, { backgroundColor: RANK_COLOR[myRow?.current_rank ?? 'bronze'] ?? Ink[500] }]}>
+              <Text style={styles.rankPillText}>{(myRow?.current_rank ?? '-').toUpperCase()}</Text>
             </View>
-            <Text style={styles.rankPos}>#{myRank?.rank ?? '-'}</Text>
+            <Text style={styles.rankPos}>#{myRow?.rank ?? '-'}</Text>
           </View>
-          <Text style={styles.myScore}>{jpy(myScore)}</Text>
+          <Text style={styles.myScore}>{jpy(myRow?.sales_jpy ?? 0)}</Text>
         </View>
       </View>
 
-      {/* バッジ（まだモックのまま：ranger_badgesテーブルに後で差し替え） */}
+      {/* バッジ（まだモック：ranger_badgesテーブルへ差し替え予定） */}
       <Text style={styles.sectionTitle}>獲得バッジ</Text>
       <View style={styles.badgeRow}>
         {badges.map((b) => (
@@ -66,18 +51,27 @@ export default function RankingScreen() {
 
       {/* ランキング */}
       <Text style={styles.sectionTitle}>月間ランキング</Text>
-      <View style={styles.rankList}>
-        {ranked.map((r) => (
-          <View key={r.name + r.rank} style={[styles.rankItem, r.me && styles.rankItemMe]}>
-            <Text style={[styles.rankNo, r.rank <= 3 && { color: Brand.gold, fontWeight: '900' }]}>{r.rank}</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.rankName, r.me && { fontWeight: '800', color: Brand.navy }]}>{r.name}</Text>
-              <Text style={styles.rankBadge}>{r.rankLabel.toUpperCase()}</Text>
+      {loading ? (
+        <View style={styles.loadingBox}>
+          <ActivityIndicator color={Brand.navy} />
+        </View>
+      ) : (
+        <View style={styles.rankList}>
+          {rows.map((r) => (
+            <View key={r.ranger_id} style={[styles.rankItem, r.isMe && styles.rankItemMe]}>
+              <Text style={[styles.rankNo, r.rank <= 3 && { color: Brand.gold, fontWeight: '900' }]}>{r.rank}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.rankName, r.isMe && { fontWeight: '800', color: Brand.navy }]}>
+                  {r.display_name}
+                  {r.isMe ? ' (あなた)' : ''}
+                </Text>
+                <Text style={styles.rankBadge}>{r.current_rank.toUpperCase()}</Text>
+              </View>
+              <Text style={styles.rankScore}>{jpy(r.sales_jpy)}</Text>
             </View>
-            <Text style={styles.rankScore}>{jpy(r.score)}</Text>
-          </View>
-        ))}
-      </View>
+          ))}
+        </View>
+      )}
     </Screen>
   );
 }
@@ -117,6 +111,7 @@ const styles = StyleSheet.create({
   badgeIcon: { fontSize: 28, color: Brand.gold },
   badgeName: { fontSize: 10, color: Ink[700], fontWeight: '600', textAlign: 'center' },
 
+  loadingBox: { paddingVertical: 48, alignItems: 'center' },
   rankList: { gap: 6 },
   rankItem: {
     flexDirection: 'row',
