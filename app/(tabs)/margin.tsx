@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { router } from 'expo-router';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ProgressBar } from '@/components/ranger/ProgressBar';
 import { Screen } from '@/components/ranger/Screen';
@@ -7,6 +8,7 @@ import { Accent, Brand, Ink, Radius } from '@/constants/theme';
 import { useAuth } from '@/hooks/use-auth';
 import { useCommissions, type CommissionStatus } from '@/hooks/use-commissions';
 import { useHomeKpis } from '@/hooks/use-home-kpis';
+import { useProfile } from '@/hooks/use-profile';
 import { jpy, shortDate } from '@/lib/format';
 import { homeKpis } from '@/lib/mockData';
 
@@ -19,8 +21,28 @@ const STATUS_COLOR: Record<CommissionStatus, string> = {
 
 export default function MarginScreen() {
   const { session } = useAuth();
+  const { profile } = useProfile(session);
   const { kpis } = useHomeKpis(session);
   const { rows: commissions } = useCommissions(session);
+
+  // 管理者は個人のマージン情報が無いので案内画面を出す
+  if (profile?.role === 'admin') {
+    return (
+      <Screen>
+        <Text style={styles.title}>マージン</Text>
+        <View style={styles.adminCard}>
+          <Text style={styles.adminTitle}>📊 管理者向けの画面ではありません</Text>
+          <Text style={styles.adminBody}>
+            この画面は個人レンジャーの報酬明細です。
+            全社の報酬合計や払い出し状況は、管理者ダッシュボードでご確認いただけます。
+          </Text>
+          <Pressable onPress={() => router.push('/(tabs)')} style={styles.adminButton}>
+            <Text style={styles.adminButtonText}>ダッシュボードへ戻る</Text>
+          </Pressable>
+        </View>
+      </Screen>
+    );
+  }
 
   const estimatedMarginJpy = kpis?.estimatedMarginJpy ?? homeKpis.estimatedMarginJpy;
   const estimatedMarginDeltaJpy = kpis?.estimatedMarginDeltaJpy ?? homeKpis.estimatedMarginDeltaJpy;
@@ -137,4 +159,24 @@ const styles = StyleSheet.create({
   goalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   goalPct: { fontSize: 18, fontWeight: '800', color: Brand.navy },
   goalSub: { fontSize: 11, color: Ink[500], marginTop: 8 },
+
+  adminCard: {
+    backgroundColor: '#fff',
+    borderRadius: Radius.lg,
+    padding: 22,
+    borderWidth: 1,
+    borderColor: Ink[100],
+    marginTop: 12,
+    gap: 10,
+  },
+  adminTitle: { fontSize: 14, fontWeight: '700', color: Ink[900] },
+  adminBody: { fontSize: 12, color: Ink[700], lineHeight: 18 },
+  adminButton: {
+    backgroundColor: Brand.navy,
+    borderRadius: Radius.md,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  adminButtonText: { color: '#fff', fontSize: 14, fontWeight: '800', letterSpacing: 1 },
 });

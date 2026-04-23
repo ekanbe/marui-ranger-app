@@ -9,6 +9,7 @@ import 'react-native-reanimated';
 import { ErrorBoundary } from '@/components/ranger/ErrorBoundary';
 import { Brand } from '@/constants/theme';
 import { useAuth } from '@/hooks/use-auth';
+import { useAutoUpdate } from '@/hooks/use-auto-update';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { usePushToken } from '@/hooks/use-push-token';
 
@@ -21,6 +22,7 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   const segments = useSegments();
   const router = useRouter();
   usePushToken(session);
+  useAutoUpdate();
 
   useEffect(() => {
     if (loading) return;
@@ -58,10 +60,10 @@ export default function RootLayout() {
             <Stack.Screen name="customer-edit/[id]"       options={{ title: '顧客編集' }} />
             <Stack.Screen name="order-new/[customerId]"   options={{ title: '新規受注' }} />
             <Stack.Screen name="product/[id]"             options={{ title: '商品詳細' }} />
+            <Stack.Screen name="ranger/[id]"              options={{ title: 'レンジャー詳細' }} />
             <Stack.Screen name="notifications"            options={{ title: '通知' }} />
             <Stack.Screen name="ranking"                  options={{ title: 'ランキング' }} />
             <Stack.Screen name="showroom"                 options={{ title: 'ショールーム' }} />
-            <Stack.Screen name="admin"                    options={{ title: '管理者ダッシュボード' }} />
           </Stack>
         </AuthGate>
         </ErrorBoundary>

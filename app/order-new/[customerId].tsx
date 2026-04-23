@@ -80,7 +80,7 @@ export default function NewOrderScreen() {
       return;
     }
 
-    const message = `受注登録完了！\n報酬 ${jpy(commission)} が pending で記録されました。`;
+    const message = `受注登録完了！\n報酬 ${jpy(commission)} が未確定として記録されました。`;
     if (Platform.OS === 'web') {
       if (typeof window !== 'undefined') window.alert(message);
     } else {

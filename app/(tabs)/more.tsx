@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { Alert, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Screen } from '@/components/ranger/Screen';
+import { roleLabel } from '@/constants/labels';
 import { Brand, Ink, Radius } from '@/constants/theme';
 import { signOut, useAuth } from '@/hooks/use-auth';
 import { useNotifications } from '@/hooks/use-notifications';
@@ -38,7 +39,6 @@ export default function MoreScreen() {
     { key: 'notifications', label: '通知',             sub: '受注・達成・アラート',   path: '/notifications', badge: unread },
     { key: 'ranking',       label: 'ランク・実績',      sub: '月間ランキング / バッジ', path: '/ranking' },
     { key: 'showroom',      label: 'ショールーム',      sub: '招待・来場管理',         path: '/showroom' },
-    ...(isAdmin ? [{ key: 'admin', label: '管理者ダッシュボード', sub: '全レンジャー・全顧客サマリー', path: '/admin' }] : []),
   ];
 
   return (
@@ -49,7 +49,7 @@ export default function MoreScreen() {
         <View style={styles.avatar}><Text style={styles.avatarText}>{avatarInitial}</Text></View>
         <View style={{ flex: 1 }}>
           <Text style={styles.name}>{displayName}</Text>
-          <Text style={styles.code}>{email ? `${email}・` : ''}{role.toUpperCase()}</Text>
+          <Text style={styles.code}>{email ? `${email}・` : ''}{roleLabel(role)}</Text>
         </View>
       </View>
 

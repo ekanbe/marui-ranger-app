@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   StyleSheet,
   Text,
   TextInput,
@@ -17,6 +18,7 @@ import { supabase } from '@/lib/supabase';
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -56,15 +58,26 @@ export default function LoginScreen() {
             </View>
 
             <View style={styles.field}>
-              <Text style={styles.label}>パスワード</Text>
+              <View style={styles.labelRow}>
+                <Text style={styles.label}>パスワード</Text>
+                <Pressable onPress={() => setShowPassword((v) => !v)} hitSlop={8}>
+                  <Text style={styles.toggleText}>{showPassword ? '隠す' : '表示'}</Text>
+                </Pressable>
+              </View>
               <TextInput
                 value={password}
                 onChangeText={setPassword}
                 placeholder="••••••••"
                 placeholderTextColor="rgba(255,255,255,0.35)"
-                secureTextEntry
+                secureTextEntry={!showPassword}
+                autoCapitalize="none"
+                autoCorrect={false}
+                autoComplete="current-password"
                 style={styles.input}
               />
+              {showPassword && password.length > 0 && (
+                <Text style={styles.charCount}>{password.length} 文字</Text>
+              )}
             </View>
 
             {error && <Text style={styles.error}>{error}</Text>}
@@ -99,7 +112,10 @@ const styles = StyleSheet.create({
 
   form: { gap: 16 },
   field: { gap: 6 },
+  labelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   label: { color: 'rgba(255,255,255,0.6)', fontSize: 11, letterSpacing: 1 },
+  toggleText: { color: '#C9A876', fontSize: 11, fontWeight: '700' },
+  charCount: { color: 'rgba(255,255,255,0.45)', fontSize: 10, textAlign: 'right' },
   input: {
     backgroundColor: 'rgba(255,255,255,0.08)',
     borderRadius: Radius.md,

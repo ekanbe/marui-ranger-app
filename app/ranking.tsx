@@ -2,6 +2,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { Screen } from '@/components/ranger/Screen';
 import { Accent, Brand, Ink, Radius } from '@/constants/theme';
+import { rankLabel } from '@/constants/labels';
 import { useAuth } from '@/hooks/use-auth';
 import { useRangerBadges } from '@/hooks/use-ranger-badges';
 import { useRanking } from '@/hooks/use-ranking';
@@ -30,7 +31,7 @@ export default function RankingScreen() {
           <Text style={styles.myLabel}>あなたの今月</Text>
           <View style={styles.rankRow}>
             <View style={[styles.rankPill, { backgroundColor: RANK_COLOR[myRow?.current_rank ?? 'bronze'] ?? Ink[500] }]}>
-              <Text style={styles.rankPillText}>{(myRow?.current_rank ?? '-').toUpperCase()}</Text>
+              <Text style={styles.rankPillText}>{rankLabel(myRow?.current_rank)}</Text>
             </View>
             <Text style={styles.rankPos}>#{myRow?.rank ?? '-'}</Text>
           </View>
@@ -65,7 +66,7 @@ export default function RankingScreen() {
                   {r.display_name}
                   {r.isMe ? ' (あなた)' : ''}
                 </Text>
-                <Text style={styles.rankBadge}>{r.current_rank.toUpperCase()}</Text>
+                <Text style={styles.rankBadge}>{rankLabel(r.current_rank)}</Text>
               </View>
               <Text style={styles.rankScore}>{jpy(r.sales_jpy)}</Text>
             </View>

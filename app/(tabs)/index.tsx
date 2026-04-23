@@ -5,6 +5,8 @@ import { ProgressBar } from '@/components/ranger/ProgressBar';
 import { Screen } from '@/components/ranger/Screen';
 import { StatCard } from '@/components/ranger/StatCard';
 import { Accent, Brand, Ink, Radius } from '@/constants/theme';
+import { rankLabel, roleLabel } from '@/constants/labels';
+import { useAdminOverview } from '@/hooks/use-admin-overview';
 import { useAuth } from '@/hooks/use-auth';
 import { useCustomers, deriveStatus } from '@/hooks/use-customers';
 import { useHomeKpis } from '@/hooks/use-home-kpis';
@@ -12,6 +14,159 @@ import { useProfile } from '@/hooks/use-profile';
 import { useTodayTasks } from '@/hooks/use-today-tasks';
 import { jpy, pct } from '@/lib/format';
 import { homeKpis, rangerProfile } from '@/lib/mockData';
+
+const RANK_COLOR: Record<string, string> = {
+  platinum: '#8B7FB3',
+  gold: Brand.gold,
+  silver: '#9CA3AF',
+  bronze: '#B8764A',
+};
+
+function AdminDashboard({ displayName, avatarInitial }: { displayName: string; avatarInitial: string }) {
+  const { overview, loading } = useAdminOverview();
+
+  if (loading || !overview) {
+    return (
+      <Screen>
+        <View style={styles.loadingBox}>
+          <Text style={styles.greeting}>読み込み中...</Text>
+        </View>
+      </Screen>
+    );
+  }
+
+  const remainingToGoal = Math.max(0, overview.totalGoalJpy - overview.thisMonthSalesJpy);
+
+  return (
+    <Screen>
+      {/* ヘッダー（admin 用） */}
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.greeting}>おはようございます</Text>
+          <View style={styles.nameRow}>
+            <Text style={styles.name}>{displayName}</Text>
+            <View style={styles.rankPill}>
+              <Text style={styles.rankText}>管理者</Text>
+            </View>
+          </View>
+        </View>
+        <View style={styles.avatar}>
+          <Text style={styles.avatarText}>{avatarInitial}</Text>
+        </View>
+      </View>
+
+      {/* ① 全社業績ヒーロー */}
+      <View style={styles.adminHero}>
+        <Text style={styles.heroLabel}>今月の全社売上</Text>
+        <Text style={styles.heroValue}>{jpy(overview.thisMonthSalesJpy)}</Text>
+        <View style={styles.heroMetaRow}>
+          <Text style={styles.heroPrev}>目標 {jpy(overview.totalGoalJpy)}</Text>
+          <Text style={styles.heroGrowth}>達成率 {pct(overview.goalProgressPct)}</Text>
+        </View>
+        <View style={{ marginTop: 8 }}>
+          <ProgressBar progress={overview.goalProgressPct} height={8} />
+        </View>
+        <Text style={styles.goalRemaining}>
+          目標まであと <Text style={styles.goalRemainingStrong}>{jpy(remainingToGoal)}</Text>
+        </Text>
+        <View style={styles.heroDivider} />
+        <View style={styles.heroBottomRow}>
+          <View>
+            <Text style={styles.heroBottomLabel}>着地予想</Text>
+            <Text style={styles.heroBottomValue}>{jpy(overview.projectedMonthEndJpy)}</Text>
+          </View>
+          <View>
+            <Text style={styles.heroBottomLabel}>受注</Text>
+            <Text style={styles.heroBottomValue}>{overview.thisMonthOrderCount}件</Text>
+          </View>
+          <View>
+            <Text style={styles.heroBottomLabel}>レンジャー</Text>
+            <Text style={styles.heroBottomValue}>{overview.totalRangers}名</Text>
+          </View>
+        </View>
+      </View>
+
+      {/* ② アラート */}
+      <View style={styles.alertRow}>
+        <View style={[styles.alertCard, overview.followRequiredCount > 0 && styles.alertCardWarn]}>
+          <Text style={styles.alertLabel}>🚨 要フォロー</Text>
+          <Text style={[styles.alertValue, overview.followRequiredCount > 0 && { color: Accent.red }]}>
+            {overview.followRequiredCount}
+            <Text style={styles.alertUnit}>店</Text>
+          </Text>
+          <Text style={styles.alertSub}>30日以上未発注</Text>
+        </View>
+        <View style={styles.alertCard}>
+          <Text style={styles.alertLabel}>🆕 今月加入レンジャー</Text>
+          <Text style={[styles.alertValue, { color: Accent.emerald }]}>
+            {overview.newRangerThisMonthCount}
+            <Text style={styles.alertUnit}>名</Text>
+          </Text>
+          <Text style={styles.alertSub}>加入日ベース</Text>
+        </View>
+      </View>
+
+      {/* 顧客 新規指標 2種 */}
+      <View style={styles.alertRow}>
+        <View style={styles.alertCard}>
+          <Text style={styles.alertLabel}>📝 今月の登録</Text>
+          <Text style={[styles.alertValue, { color: Ink[900] }]}>
+            {overview.newCustomerRegisteredCount}
+            <Text style={styles.alertUnit}>店</Text>
+          </Text>
+          <Text style={styles.alertSub}>システム登録日ベース</Text>
+        </View>
+        <View style={[styles.alertCard, overview.newCustomerFirstOrderCount > 0 && { borderColor: 'rgba(16,185,129,0.4)', borderWidth: 2 }]}>
+          <Text style={styles.alertLabel}>🎯 今月の初回受注</Text>
+          <Text style={[styles.alertValue, { color: Accent.emerald }]}>
+            {overview.newCustomerFirstOrderCount}
+            <Text style={styles.alertUnit}>店</Text>
+          </Text>
+          <Text style={styles.alertSub}>実質の新規獲得</Text>
+        </View>
+      </View>
+
+      {/* ③ 財務 */}
+      <View style={styles.grid}>
+        <StatCard
+          label="未払報酬"
+          value={jpy(overview.totalCommissionPending)}
+          sub="未確定・確定合計"
+          subTone="amber"
+          style={styles.gridItem}
+        />
+        <StatCard
+          label="支払済"
+          value={jpy(overview.totalCommissionPaid)}
+          sub="支払済合計"
+          style={styles.gridItem}
+        />
+      </View>
+
+      {/* ④ レンジャー別 上位3名 */}
+      <View style={styles.card}>
+        <View style={styles.cardHeader}>
+          <Text style={styles.cardTitle}>レンジャー別 今月売上 上位3名</Text>
+          <Pressable onPress={() => router.push('/(tabs)/rangers')}>
+            <Text style={styles.cardLink}>全員見る →</Text>
+          </Pressable>
+        </View>
+        {overview.rangers.slice(0, 3).map((r, i) => (
+          <View key={r.ranger_id} style={styles.rangerRow}>
+            <Text style={[styles.rangerRank, { color: Brand.gold }]}>#{i + 1}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.rangerName}>{r.display_name}</Text>
+              <View style={[styles.rankPillSmall, { backgroundColor: RANK_COLOR[r.current_rank] ?? Ink[300] }]}>
+                <Text style={styles.rankPillSmallText}>{rankLabel(r.current_rank)}</Text>
+              </View>
+            </View>
+            <Text style={styles.rangerSales}>{jpy(r.sales_jpy)}</Text>
+          </View>
+        ))}
+      </View>
+    </Screen>
+  );
+}
 
 export default function HomeScreen() {
   const { session } = useAuth();
@@ -29,6 +184,11 @@ export default function HomeScreen() {
   const displayName = profile?.display_name ?? rangerProfile.name;
   const avatarInitial = displayName.charAt(0);
   const role = profile?.role ?? rangerProfile.rank;
+
+  // 管理者は専用ビューを表示
+  if (profile?.role === 'admin') {
+    return <AdminDashboard displayName={displayName} avatarInitial={avatarInitial} />;
+  }
 
   // Supabase 由来の数値がある場合はそちらを優先、無ければ mockData で埋める
   const k = {
@@ -51,7 +211,7 @@ export default function HomeScreen() {
           <Text style={styles.greeting}>おはようございます</Text>
           <View style={styles.nameRow}>
             <Text style={styles.name}>{displayName}</Text>
-            <View style={styles.rankPill}><Text style={styles.rankText}>{role.toUpperCase()}</Text></View>
+            <View style={styles.rankPill}><Text style={styles.rankText}>{roleLabel(role)}</Text></View>
           </View>
         </View>
         <View style={styles.avatar}><Text style={styles.avatarText}>{avatarInitial}</Text></View>
@@ -182,4 +342,47 @@ const styles = StyleSheet.create({
   todoEmpty: { fontSize: 12, color: Ink[500], paddingVertical: 12, textAlign: 'center' },
 
   footerCredit: { textAlign: 'center', color: Ink[500], fontSize: 10, letterSpacing: 2, marginTop: 8 },
+
+  loadingBox: { paddingVertical: 48, alignItems: 'center' },
+
+  adminHero: {
+    backgroundColor: Brand.navy,
+    borderRadius: Radius.xl,
+    padding: 22,
+    marginBottom: 12,
+  },
+  heroMetaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 },
+  heroBottomRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  heroBottomLabel: { color: 'rgba(255,255,255,0.55)', fontSize: 10, letterSpacing: 1 },
+  heroBottomValue: { color: '#fff', fontSize: 14, fontWeight: '700', marginTop: 4 },
+
+  alertRow: { flexDirection: 'row', gap: 10, marginBottom: 12 },
+  alertCard: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderRadius: Radius.md,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: Ink[100],
+  },
+  alertCardWarn: { borderColor: 'rgba(239,68,68,0.4)', borderWidth: 2 },
+  alertLabel: { fontSize: 10, color: Ink[500], letterSpacing: 0.5 },
+  alertValue: { fontSize: 22, fontWeight: '800', color: Ink[900], marginTop: 4 },
+  alertUnit: { fontSize: 11, fontWeight: '500', color: Ink[500] },
+  alertSub: { fontSize: 10, color: Ink[500], marginTop: 4 },
+
+  cardLink: { fontSize: 11, color: Brand.navy, fontWeight: '700' },
+  rangerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: Ink[100],
+  },
+  rangerRank: { width: 28, fontSize: 16, fontWeight: '900', textAlign: 'center' },
+  rangerName: { fontSize: 13, fontWeight: '700', color: Ink[900] },
+  rankPillSmall: { alignSelf: 'flex-start', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999, marginTop: 4 },
+  rankPillSmallText: { color: '#fff', fontSize: 9, fontWeight: '800', letterSpacing: 0.5 },
+  rangerSales: { fontSize: 13, fontWeight: '700', color: Ink[900] },
 });
