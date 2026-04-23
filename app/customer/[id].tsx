@@ -1,45 +1,70 @@
 import { useLocalSearchParams } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { Screen } from '@/components/ranger/Screen';
 import { Accent, Brand, Ink, Radius } from '@/constants/theme';
+import { deriveStatus, type DerivedStatus } from '@/hooks/use-customers';
+import { useCustomerDetail } from '@/hooks/use-customer-detail';
 import { daysSince, jpy } from '@/lib/format';
-import { customers, products } from '@/lib/mockData';
+import { products } from '@/lib/mockData';
 
-const STATUS_LABEL = { good: '好調', stall: '停滞', follow: '要フォロー' } as const;
-const STATUS_COLOR = { good: Accent.emerald, stall: Accent.amber, follow: Accent.red } as const;
+const STATUS_LABEL: Record<DerivedStatus, string> = { good: '好調', stall: '停滞', follow: '要フォロー' };
+const STATUS_COLOR: Record<DerivedStatus, string> = { good: Accent.emerald, stall: Accent.amber, follow: Accent.red };
 
 export default function CustomerDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const c = customers.find(x => x.id === id) ?? customers[0];
-  const days = daysSince(c.lastOrderedAt) ?? 0;
+  const { detail, loading } = useCustomerDetail(id);
 
-  // 悲鳴 → 商品 の簡易マッチング（フィットスコア降順 top3）
+  if (loading) {
+    return (
+      <Screen>
+        <View style={styles.loading}>
+          <ActivityIndicator color={Brand.navy} />
+        </View>
+      </Screen>
+    );
+  }
+
+  if (!detail) {
+    return (
+      <Screen>
+        <Text style={styles.notFound}>顧客が見つかりません</Text>
+      </Screen>
+    );
+  }
+
+  const status = deriveStatus(detail.last_ordered_at);
+  const days = daysSince(detail.last_ordered_at) ?? 0;
+
+  // 推薦商品は一旦モックの fitScore 順（後で recommendations テーブルに差し替え）
   const suggestions = [...products].sort((a, b) => (b.fitScore ?? 0) - (a.fitScore ?? 0)).slice(0, 3);
 
   return (
     <Screen>
       <View style={styles.statusRow}>
-        <View style={[styles.dot, { backgroundColor: STATUS_COLOR[c.status] }]} />
-        <Text style={[styles.statusText, { color: STATUS_COLOR[c.status] }]}>{STATUS_LABEL[c.status]}</Text>
+        <View style={[styles.dot, { backgroundColor: STATUS_COLOR[status] }]} />
+        <Text style={[styles.statusText, { color: STATUS_COLOR[status] }]}>{STATUS_LABEL[status]}</Text>
       </View>
-      <Text style={styles.name}>{c.name}</Text>
-      <Text style={styles.branch}>{c.branch} / {c.businessType}</Text>
-      <Text style={styles.address}>{c.address}</Text>
+      <Text style={styles.name}>{detail.name}</Text>
+      <Text style={styles.branch}>
+        {detail.branch_name ? `${detail.branch_name} / ` : ''}
+        {detail.business_type ?? '-'}
+      </Text>
+      <Text style={styles.address}>{detail.address ?? '-'}</Text>
 
       {/* サマリー */}
       <View style={styles.summaryRow}>
         <View style={styles.summaryCard}>
           <Text style={styles.summaryLabel}>今月売上</Text>
-          <Text style={styles.summaryValue}>{jpy(c.monthSalesJpy)}</Text>
+          <Text style={styles.summaryValue}>{jpy(detail.monthSalesJpy)}</Text>
         </View>
         <View style={styles.summaryCard}>
           <Text style={styles.summaryLabel}>累計売上</Text>
-          <Text style={styles.summaryValue}>{jpy(c.totalSalesJpy)}</Text>
+          <Text style={styles.summaryValue}>{jpy(detail.totalSalesJpy)}</Text>
         </View>
         <View style={styles.summaryCard}>
           <Text style={styles.summaryLabel}>自分のマージン</Text>
-          <Text style={styles.summaryValue}>{jpy(c.monthMarginJpy)}</Text>
+          <Text style={styles.summaryValue}>{jpy(detail.monthMarginJpy)}</Text>
         </View>
       </View>
 
@@ -47,9 +72,15 @@ export default function CustomerDetailScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>この店舗の悲鳴</Text>
         <View style={styles.painRow}>
-          {c.painPoints.map(p => (
-            <View key={p} style={styles.painTag}><Text style={styles.painTagText}>{p}</Text></View>
-          ))}
+          {detail.painPoints.length > 0 ? (
+            detail.painPoints.map((p) => (
+              <View key={p} style={styles.painTag}>
+                <Text style={styles.painTagText}>{p}</Text>
+              </View>
+            ))
+          ) : (
+            <Text style={styles.emptyInline}>登録されていません</Text>
+          )}
         </View>
       </View>
 
@@ -57,13 +88,13 @@ export default function CustomerDetailScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>発注ステータス</Text>
         <View style={styles.statusBox}>
-          <Text style={[styles.statusBigLabel, { color: STATUS_COLOR[c.status] }]}>
-            最終発注 {days}日前
-          </Text>
+          <Text style={[styles.statusBigLabel, { color: STATUS_COLOR[status] }]}>最終発注 {days}日前</Text>
           <Text style={styles.statusNote}>
-            {c.status === 'follow' ? '電話フォローを推奨します'
-             : c.status === 'stall' ? '新商品提案で動きを作りましょう'
-             : '継続順調。次の提案ネタ候補は以下'}
+            {status === 'follow'
+              ? '電話フォローを推奨します'
+              : status === 'stall'
+              ? '新商品提案で動きを作りましょう'
+              : '継続順調。次の提案ネタ候補は以下'}
           </Text>
         </View>
       </View>
@@ -71,11 +102,13 @@ export default function CustomerDetailScreen() {
       {/* 推薦商品（特許要件3） */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>次の提案候補（適合度順）</Text>
-        {suggestions.map(s => (
+        {suggestions.map((s) => (
           <View key={s.id} style={styles.suggestion}>
             <View style={{ flex: 1 }}>
               <Text style={styles.suggestName}>{s.name}</Text>
-              <Text style={styles.suggestPitch} numberOfLines={2}>{s.pitch}</Text>
+              <Text style={styles.suggestPitch} numberOfLines={2}>
+                {s.pitch}
+              </Text>
             </View>
             <View style={styles.suggestScore}>
               <Text style={styles.suggestScoreText}>{Math.round((s.fitScore ?? 0) * 100)}%</Text>
@@ -83,22 +116,14 @@ export default function CustomerDetailScreen() {
           </View>
         ))}
       </View>
-
-      {/* 商談メモ */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>最後の商談メモ</Text>
-        <View style={styles.memoBox}>
-          <Text style={styles.memoText}>
-            前回訪問：オペ人員が限られているため、簡単に提供できる新メニューを探している。客単価の改善も課題。次回は「クラフト80 ピーチ」の試食を持参予定。
-          </Text>
-          <Text style={styles.memoDate}>2026-04-12</Text>
-        </View>
-      </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  loading: { paddingVertical: 48, alignItems: 'center' },
+  notFound: { paddingVertical: 48, textAlign: 'center', color: Ink[500] },
+
   statusRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
   dot: { width: 8, height: 8, borderRadius: 4 },
   statusText: { fontSize: 11, fontWeight: '700' },
@@ -117,22 +142,25 @@ const styles = StyleSheet.create({
   painRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   painTag: { backgroundColor: 'rgba(239,68,68,0.08)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 },
   painTagText: { fontSize: 12, color: Accent.red, fontWeight: '600' },
+  emptyInline: { fontSize: 12, color: Ink[500] },
 
   statusBox: { backgroundColor: '#fff', padding: 14, borderRadius: Radius.md, borderWidth: 1, borderColor: Ink[100] },
   statusBigLabel: { fontSize: 14, fontWeight: '700' },
   statusNote: { fontSize: 12, color: Ink[500], marginTop: 6 },
 
   suggestion: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: '#fff', padding: 14, borderRadius: Radius.md,
-    borderWidth: 1, borderColor: Ink[100], marginBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#fff',
+    padding: 14,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: Ink[100],
+    marginBottom: 8,
   },
   suggestName: { fontSize: 13, fontWeight: '700', color: Ink[900] },
   suggestPitch: { fontSize: 11, color: Ink[500], marginTop: 4, lineHeight: 15 },
   suggestScore: { backgroundColor: Brand.navy, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 },
   suggestScoreText: { color: '#fff', fontWeight: '800', fontSize: 12 },
-
-  memoBox: { backgroundColor: '#fff', padding: 14, borderRadius: Radius.md, borderWidth: 1, borderColor: Ink[100] },
-  memoText: { fontSize: 13, color: Ink[700], lineHeight: 20 },
-  memoDate: { fontSize: 10, color: Ink[500], marginTop: 8 },
 });

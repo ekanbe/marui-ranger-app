@@ -1,13 +1,35 @@
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Screen } from '@/components/ranger/Screen';
 import { Brand, Ink, Radius } from '@/constants/theme';
+import { signOut, useAuth } from '@/hooks/use-auth';
+import { useProfile } from '@/hooks/use-profile';
 import { notifications, rangerProfile } from '@/lib/mockData';
+
+function handleLogout() {
+  if (Platform.OS === 'web') {
+    if (typeof window !== 'undefined' && window.confirm('ログアウトしますか？')) {
+      signOut();
+    }
+    return;
+  }
+  Alert.alert('ログアウト', 'ログアウトしますか？', [
+    { text: 'キャンセル', style: 'cancel' },
+    { text: 'ログアウト', style: 'destructive', onPress: () => { signOut(); } },
+  ]);
+}
 
 type Item = { key: string; label: string; sub: string; path: string; badge?: number };
 
 export default function MoreScreen() {
+  const { session } = useAuth();
+  const { profile } = useProfile(session);
+  const displayName = profile?.display_name ?? rangerProfile.name;
+  const avatarInitial = displayName.charAt(0);
+  const role = profile?.role ?? rangerProfile.rank;
+  const email = profile?.email ?? session?.user.email ?? '';
+
   const unread = notifications.filter(n => !n.read).length;
   const items: Item[] = [
     { key: 'notifications', label: '通知',             sub: '受注・達成・アラート',   path: '/notifications', badge: unread },
@@ -20,10 +42,10 @@ export default function MoreScreen() {
       <Text style={styles.title}>その他</Text>
 
       <View style={styles.profile}>
-        <View style={styles.avatar}><Text style={styles.avatarText}>{rangerProfile.avatarInitial}</Text></View>
+        <View style={styles.avatar}><Text style={styles.avatarText}>{avatarInitial}</Text></View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.name}>{rangerProfile.name}</Text>
-          <Text style={styles.code}>{rangerProfile.code}・{rangerProfile.rank.toUpperCase()}</Text>
+          <Text style={styles.name}>{displayName}</Text>
+          <Text style={styles.code}>{email ? `${email}・` : ''}{role.toUpperCase()}</Text>
         </View>
       </View>
 
@@ -49,9 +71,9 @@ export default function MoreScreen() {
           <Text style={styles.rowLabel}>ヘルプ</Text>
           <Text style={styles.rowSubSmall}>準備中</Text>
         </Pressable>
-        <Pressable style={[styles.row, styles.disabledRow]}>
+        <Pressable style={styles.row} onPress={handleLogout}>
           <Text style={[styles.rowLabel, { color: '#EF4444' }]}>ログアウト</Text>
-          <Text style={styles.rowSubSmall}>準備中</Text>
+          <Text style={styles.arrow}>›</Text>
         </Pressable>
       </View>
     </Screen>

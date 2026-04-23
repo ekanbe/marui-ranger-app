@@ -5,10 +5,36 @@ import { ProgressBar } from '@/components/ranger/ProgressBar';
 import { Screen } from '@/components/ranger/Screen';
 import { StatCard } from '@/components/ranger/StatCard';
 import { Accent, Brand, Ink, Radius } from '@/constants/theme';
+import { useAuth } from '@/hooks/use-auth';
+import { useCustomers, deriveStatus } from '@/hooks/use-customers';
+import { useHomeKpis } from '@/hooks/use-home-kpis';
+import { useProfile } from '@/hooks/use-profile';
 import { jpy, pct } from '@/lib/format';
 import { homeKpis, rangerProfile, todayTodos } from '@/lib/mockData';
 
 export default function HomeScreen() {
+  const { session } = useAuth();
+  const { profile } = useProfile(session);
+  const { kpis } = useHomeKpis(session);
+  const { customers } = useCustomers();
+
+  const displayName = profile?.display_name ?? rangerProfile.name;
+  const avatarInitial = displayName.charAt(0);
+  const role = profile?.role ?? rangerProfile.rank;
+
+  // Supabase 由来の数値がある場合はそちらを優先、無ければ mockData で埋める
+  const k = {
+    ...homeKpis,
+    ...(kpis ?? {}),
+  };
+  const customerCount = customers.length || k.customerCount;
+  const customersGood = customers.length
+    ? customers.filter((c) => deriveStatus(c.last_ordered_at) === 'good').length
+    : k.customersGood;
+  const customersFollow = customers.length
+    ? customers.filter((c) => deriveStatus(c.last_ordered_at) === 'follow').length
+    : k.customersFollow;
+
   return (
     <Screen>
       {/* ヘッダー */}
@@ -16,38 +42,38 @@ export default function HomeScreen() {
         <View>
           <Text style={styles.greeting}>おはようございます</Text>
           <View style={styles.nameRow}>
-            <Text style={styles.name}>{rangerProfile.name}</Text>
-            <View style={styles.rankPill}><Text style={styles.rankText}>{rangerProfile.rank.toUpperCase()}</Text></View>
+            <Text style={styles.name}>{displayName}</Text>
+            <View style={styles.rankPill}><Text style={styles.rankText}>{role.toUpperCase()}</Text></View>
           </View>
         </View>
-        <View style={styles.avatar}><Text style={styles.avatarText}>{rangerProfile.avatarInitial}</Text></View>
+        <View style={styles.avatar}><Text style={styles.avatarText}>{avatarInitial}</Text></View>
       </View>
 
       {/* ヒーロー：今月売上 */}
       <View style={styles.hero}>
         <Text style={styles.heroLabel}>今月の売上</Text>
-        <Text style={styles.heroValue}>{jpy(homeKpis.monthSalesJpy)}</Text>
+        <Text style={styles.heroValue}>{jpy(k.monthSalesJpy)}</Text>
         <View style={styles.heroRow}>
-          <Text style={styles.heroGrowth}>▲ {pct(homeKpis.monthGrowthPct)}</Text>
-          <Text style={styles.heroPrev}>前月比 {jpy(homeKpis.prevMonthSalesJpy)}</Text>
+          <Text style={styles.heroGrowth}>▲ {pct(k.monthGrowthPct)}</Text>
+          <Text style={styles.heroPrev}>前月比 {jpy(k.prevMonthSalesJpy)}</Text>
         </View>
         <View style={styles.heroDivider} />
         <View style={styles.goalRow}>
           <Text style={styles.goalText}>今月の目標</Text>
-          <Text style={styles.goalPct}>{pct(homeKpis.goalProgressPct)}</Text>
+          <Text style={styles.goalPct}>{pct(k.goalProgressPct)}</Text>
         </View>
-        <ProgressBar progress={homeKpis.goalProgressPct} height={8} />
+        <ProgressBar progress={k.goalProgressPct} height={8} />
         <Text style={styles.goalRemaining}>
-          あと <Text style={styles.goalRemainingStrong}>{jpy(homeKpis.remainingToGoalJpy)}</Text> で達成
+          あと <Text style={styles.goalRemainingStrong}>{jpy(k.remainingToGoalJpy)}</Text> で達成
         </Text>
       </View>
 
       {/* KPIカード 2x2 */}
       <View style={styles.grid}>
-        <StatCard label="今月見込みマージン" value={jpy(homeKpis.estimatedMarginJpy)} sub={`▲ ${jpy(homeKpis.estimatedMarginDeltaJpy)}`} subTone="emerald" style={styles.gridItem} />
-        <StatCard label="累計マージン"       value={jpy(homeKpis.cumulativeMarginJpy)} sub="2026年度" style={styles.gridItem} />
-        <StatCard label="担当店舗" value={`${homeKpis.customerCount}店`} sub={`好調 ${homeKpis.customersGood} / 要フォロー ${homeKpis.customersFollow}`} style={styles.gridItem} />
-        <StatCard label="今月の新規受注" value={`${homeKpis.newOrdersCount}件`} sub={`▲ ${homeKpis.newOrdersDelta} 件`} subTone="emerald" style={styles.gridItem} />
+        <StatCard label="今月見込みマージン" value={jpy(k.estimatedMarginJpy)} sub={`▲ ${jpy(k.estimatedMarginDeltaJpy)}`} subTone="emerald" style={styles.gridItem} />
+        <StatCard label="累計マージン"       value={jpy(k.cumulativeMarginJpy)} sub="2026年度" style={styles.gridItem} />
+        <StatCard label="担当店舗" value={`${customerCount}店`} sub={`好調 ${customersGood} / 要フォロー ${customersFollow}`} style={styles.gridItem} />
+        <StatCard label="今月の新規受注" value={`${k.newOrdersCount}件`} sub={`▲ ${k.newOrdersDelta} 件`} subTone="emerald" style={styles.gridItem} />
       </View>
 
       {/* 今日やること */}
