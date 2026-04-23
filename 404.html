@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8"/>
+<title>Redirecting...</title>
+<script>
+  (function () {
+    var l = window.location;
+    var base = '/marui-ranger-app';
+    var path = l.pathname;
+    if (path.indexOf(base) === 0) path = path.slice(base.length);
+    var redirect = path + l.search + l.hash;
+    // sessionStorage に元URLを入れて、index 側で復元する（URLは一時的に / になる）
+    try { sessionStorage.setItem('__spa_redirect__', redirect); } catch (e) {}
+    l.replace(base + '/');
+  })();
+</script>
+<link rel="manifest" href="/marui-ranger-app/manifest.webmanifest"/>
+<meta name="theme-color" content="#1E3A5F"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="レンジャー"/>
+<link rel="apple-touch-icon" href="/marui-ranger-app/icon-192.png"/>
+<script>
+  (function () {
+    try {
+      var r = sessionStorage.getItem('__spa_redirect__');
+      if (r) {
+        sessionStorage.removeItem('__spa_redirect__');
+        if (r && r !== '/' && r !== '') history.replaceState(null, '', '/marui-ranger-app' + r);
+      }
+    } catch (e) {}
+  })();
+</script>
+</head>
+<body></body>
+</html>
