@@ -26,7 +26,7 @@ import { homeKpis, rangerProfile } from '@/lib/mockData';
 // ============================================================
 // Admin Dashboard
 // ============================================================
-function AdminDashboard({ displayName, avatarInitial }: { displayName: string; avatarInitial: string }) {
+function AdminDashboard({ displayName, avatarUrl }: { displayName: string; avatarUrl?: string | null }) {
   const { overview, loading } = useAdminOverview();
 
   if (loading || !overview) {
@@ -45,7 +45,7 @@ function AdminDashboard({ displayName, avatarInitial }: { displayName: string; a
 
   return (
     <Screen>
-      <HeaderBar displayName={displayName} avatarInitial={avatarInitial} roleLabel="管理者" />
+      <HeaderBar displayName={displayName} avatarUrl={avatarUrl} roleLabel="管理者" />
 
       {/* 全社売上ヒーロー */}
       <HeroCard
@@ -150,7 +150,7 @@ function AdminDashboard({ displayName, avatarInitial }: { displayName: string; a
             <View style={[styles.trophy, rankBadgeStyle(i)]}>
               <Text style={[styles.trophyText, rankBadgeTextStyle(i)]}>{i + 1}</Text>
             </View>
-            <Avatar name={r.display_name} size="sm" />
+            <Avatar name={r.display_name} imageUrl={r.avatar_url} size="sm" />
             <View style={{ flex: 1, marginLeft: 10 }}>
               <Text style={styles.rangerName}>{r.display_name}</Text>
               <Badge label={rankLabel(r.current_rank)} tone={r.current_rank as any} />
@@ -188,11 +188,11 @@ function HeroStat({ label, value }: { label: string; value: string }) {
 // ============================================================
 function HeaderBar({
   displayName,
-  avatarInitial,
+  avatarUrl,
   roleLabel,
 }: {
   displayName: string;
-  avatarInitial: string;
+  avatarUrl?: string | null;
   roleLabel: string;
 }) {
   return (
@@ -204,7 +204,9 @@ function HeaderBar({
           <Badge label={roleLabel} tone="navy" />
         </View>
       </View>
-      <Avatar name={avatarInitial} size="md" />
+      <Pressable onPress={() => router.push('/profile-edit')}>
+        <Avatar name={displayName} imageUrl={avatarUrl} size="md" />
+      </Pressable>
     </View>
   );
 }
@@ -223,11 +225,11 @@ export default function HomeScreen() {
   const todayTasks = [...followTasks, ...showroomTasks, ...recommendTasks.slice(0, remain)];
 
   const displayName = profile?.display_name ?? rangerProfile.name;
-  const avatarInitial = displayName.charAt(0);
+  const avatarUrl = profile?.avatar_url;
   const role = profile?.role ?? rangerProfile.rank;
 
   if (profile?.role === 'admin') {
-    return <AdminDashboard displayName={displayName} avatarInitial={avatarInitial} />;
+    return <AdminDashboard displayName={displayName} avatarUrl={avatarUrl} />;
   }
 
   const k = { ...homeKpis, ...(kpis ?? {}) };
@@ -241,7 +243,7 @@ export default function HomeScreen() {
 
   return (
     <Screen>
-      <HeaderBar displayName={displayName} avatarInitial={avatarInitial} roleLabel={roleLabel(role)} />
+      <HeaderBar displayName={displayName} avatarUrl={avatarUrl} roleLabel={roleLabel(role)} />
 
       {/* 今月の売上ヒーロー */}
       <HeroCard label="今月の売上" value={jpy(k.monthSalesJpy)} tone="navy" style={{ marginBottom: 14 }}>

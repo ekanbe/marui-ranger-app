@@ -53,7 +53,7 @@ export default function RangerDetailScreen() {
     <Screen>
       {/* プロフィールヘッダー */}
       <View style={styles.header}>
-        <Avatar name={detail.display_name} size="xl" />
+        <Avatar name={detail.display_name} imageUrl={detail.avatar_url} size="xl" />
         <View style={{ flex: 1 }}>
           <Text style={styles.name}>{detail.display_name}</Text>
           <View style={styles.badgeRow}>

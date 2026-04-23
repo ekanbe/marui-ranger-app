@@ -23,6 +23,7 @@ export type AdminOverview = {
   rangers: Array<{
     ranger_id: string;
     display_name: string;
+    avatar_url: string | null;
     current_rank: string;
     sales_jpy: number;
   }>;
@@ -39,7 +40,7 @@ export function useAdminOverview() {
       const [rankingRes, commissionsRes, rangersRes, customersRes, allOrdersRes] = await Promise.all([
         supabase
           .from('v_ranking_this_month')
-          .select('ranger_id, display_name, current_rank, sales_jpy, order_count')
+          .select('ranger_id, display_name, avatar_url, current_rank, sales_jpy, order_count')
           .order('sales_jpy', { ascending: false }),
         supabase.from('commissions').select('ranger_amount_jpy, status'),
         supabase.from('rangers').select('monthly_goal_jpy, joined_at'),
@@ -56,6 +57,7 @@ export function useAdminOverview() {
       const rankingRows = (rankingRes.data ?? []) as Array<{
         ranger_id: string;
         display_name: string;
+        avatar_url: string | null;
         current_rank: string;
         sales_jpy: number | string;
         order_count: number | string;
@@ -133,6 +135,7 @@ export function useAdminOverview() {
         rangers: rankingRows.map((r) => ({
           ranger_id: r.ranger_id,
           display_name: r.display_name,
+          avatar_url: r.avatar_url,
           current_rank: r.current_rank,
           sales_jpy: Number(r.sales_jpy ?? 0),
         })),

@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase';
 export type RankingRow = {
   ranger_id: string;
   display_name: string;
+  avatar_url: string | null;
   current_rank: string;
   sales_jpy: number;
   rank: number;
@@ -22,7 +23,7 @@ export function useRanking(session: Session | null) {
     (async () => {
       const { data, error } = await supabase
         .from('v_ranking_this_month')
-        .select('ranger_id, display_name, current_rank, sales_jpy')
+        .select('ranger_id, display_name, avatar_url, current_rank, sales_jpy')
         .order('sales_jpy', { ascending: false });
 
       if (!mounted) return;
@@ -31,6 +32,7 @@ export function useRanking(session: Session | null) {
       const raw = (data ?? []) as Array<{
         ranger_id: string;
         display_name: string | null;
+        avatar_url: string | null;
         current_rank: string | null;
         sales_jpy: number | string | null;
       }>;
@@ -39,6 +41,7 @@ export function useRanking(session: Session | null) {
       const ranked: RankingRow[] = raw.map((r, i) => ({
         ranger_id: r.ranger_id,
         display_name: r.display_name ?? '-',
+        avatar_url: r.avatar_url,
         current_rank: r.current_rank ?? 'bronze',
         sales_jpy: Number(r.sales_jpy ?? 0),
         rank: i + 1,

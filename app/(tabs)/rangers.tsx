@@ -47,7 +47,7 @@ export default function RangersScreen() {
             >
               <View style={styles.cardTop}>
                 <Text style={[styles.rank, i < 3 && { fontSize: 24 }]}>{medal}</Text>
-                <Avatar name={r.display_name} size="md" />
+                <Avatar name={r.display_name} imageUrl={r.avatar_url} size="md" />
                 <View style={{ flex: 1, marginLeft: 10 }}>
                   <Text style={styles.name}>{r.display_name}</Text>
                   <View style={{ marginTop: 4, flexDirection: 'row', gap: 6 }}>

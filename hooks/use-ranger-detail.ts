@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 export type RangerDetail = {
   id: string;
   display_name: string;
+  avatar_url: string | null;
   email: string | null;
   ranger_code: string;
   joined_at: string | null;
@@ -38,7 +39,7 @@ type NestedRanger = {
   joined_at: string | null;
   monthly_goal_jpy: number | string;
   current_rank: string;
-  profiles: { display_name: string | null; email: string | null } | null;
+  profiles: { display_name: string | null; email: string | null; avatar_url: string | null } | null;
 };
 
 export function useRangerDetail(rangerId: string | undefined) {
@@ -57,7 +58,7 @@ export function useRangerDetail(rangerId: string | undefined) {
       const [rangerRes, summaryRes, commissionsRes, customersRes, orderCountRes] = await Promise.all([
         supabase
           .from('rangers')
-          .select('id, ranger_code, joined_at, monthly_goal_jpy, current_rank, profiles!inner(display_name, email)')
+          .select('id, ranger_code, joined_at, monthly_goal_jpy, current_rank, profiles!inner(display_name, email, avatar_url)')
           .eq('id', rangerId)
           .maybeSingle(),
         supabase
@@ -130,6 +131,7 @@ export function useRangerDetail(rangerId: string | undefined) {
       setDetail({
         id: r.id,
         display_name: r.profiles?.display_name ?? '-',
+        avatar_url: r.profiles?.avatar_url ?? null,
         email: r.profiles?.email ?? null,
         ranger_code: r.ranger_code,
         joined_at: r.joined_at,

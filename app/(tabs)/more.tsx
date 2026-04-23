@@ -47,19 +47,25 @@ export default function MoreScreen() {
     <Screen>
       <Text style={styles.title}>その他</Text>
 
-      {/* プロフィールカード */}
-      <Card variant="elevated" padding={18} style={{ marginBottom: 16 }}>
-        <View style={styles.profile}>
-          <Avatar name={displayName} size="lg" />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.name}>{displayName}</Text>
-            {email ? <Text style={styles.email}>{email}</Text> : null}
-            <View style={{ marginTop: 6 }}>
-              <Badge label={roleLabel(role)} tone={role === 'admin' ? 'violet' : 'navy'} />
+      {/* プロフィールカード（タップで編集画面へ） */}
+      <Pressable
+        onPress={() => router.push('/profile-edit')}
+        style={({ pressed }) => [pressed && { opacity: 0.85 }]}
+      >
+        <Card variant="elevated" padding={18} style={{ marginBottom: 16 }}>
+          <View style={styles.profile}>
+            <Avatar name={displayName} imageUrl={profile?.avatar_url} size="lg" />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.name}>{displayName}</Text>
+              {email ? <Text style={styles.email}>{email}</Text> : null}
+              <View style={{ marginTop: 6 }}>
+                <Badge label={roleLabel(role)} tone={role === 'admin' ? 'violet' : 'navy'} />
+              </View>
             </View>
+            <Text style={styles.editIcon}>✎</Text>
           </View>
-        </View>
-      </Card>
+        </Card>
+      </Pressable>
 
       {/* メニュー */}
       <View style={{ gap: 10 }}>
@@ -122,6 +128,7 @@ const styles = StyleSheet.create({
   profile: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   name: { fontSize: 17, fontWeight: '800', color: Ink[900] },
   email: { fontSize: 11, color: Ink[500], marginTop: 2 },
+  editIcon: { fontSize: 20, color: Ink[400] },
 
   sectionHeader: {
     fontSize: 11,

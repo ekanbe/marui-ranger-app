@@ -68,7 +68,7 @@ export default function RankingScreen() {
                 ]}
               >
                 <Text style={[styles.rankMedal, r.rank <= 3 && { fontSize: 22 }]}>{medal}</Text>
-                <Avatar name={r.display_name} size="sm" />
+                <Avatar name={r.display_name} imageUrl={r.avatar_url} size="sm" />
                 <View style={{ flex: 1, marginLeft: 10 }}>
                   <Text style={[styles.rankName, r.isMe && { fontWeight: '900', color: Brand.navy }]}>
                     {r.display_name}{r.isMe ? ' (あなた)' : ''}
