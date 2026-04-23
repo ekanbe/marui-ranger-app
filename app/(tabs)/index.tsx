@@ -9,14 +9,22 @@ import { useAuth } from '@/hooks/use-auth';
 import { useCustomers, deriveStatus } from '@/hooks/use-customers';
 import { useHomeKpis } from '@/hooks/use-home-kpis';
 import { useProfile } from '@/hooks/use-profile';
+import { useTodayTasks } from '@/hooks/use-today-tasks';
 import { jpy, pct } from '@/lib/format';
-import { homeKpis, rangerProfile, todayTodos } from '@/lib/mockData';
+import { homeKpis, rangerProfile } from '@/lib/mockData';
 
 export default function HomeScreen() {
   const { session } = useAuth();
   const { profile } = useProfile(session);
   const { kpis } = useHomeKpis(session);
   const { customers } = useCustomers();
+  const { tasks: allTasks } = useTodayTasks(session);
+  // 要フォロー・ショールームは優先して全件、残り枠を推薦で埋める（合計最大4件）
+  const followTasks = allTasks.filter((t) => t.task_type === 'follow');
+  const showroomTasks = allTasks.filter((t) => t.task_type === 'showroom');
+  const recommendTasks = allTasks.filter((t) => t.task_type === 'recommend');
+  const remain = Math.max(0, 4 - followTasks.length - showroomTasks.length);
+  const todayTasks = [...followTasks, ...showroomTasks, ...recommendTasks.slice(0, remain)];
 
   const displayName = profile?.display_name ?? rangerProfile.name;
   const avatarInitial = displayName.charAt(0);
@@ -76,28 +84,42 @@ export default function HomeScreen() {
         <StatCard label="今月の新規受注" value={`${k.newOrdersCount}件`} sub={`▲ ${k.newOrdersDelta} 件`} subTone="emerald" style={styles.gridItem} />
       </View>
 
-      {/* 今日やること */}
+      {/* 今日やること（v_today_tasks から動的生成） */}
       <View style={styles.card}>
         <View style={styles.cardHeader}>
           <Text style={styles.cardTitle}>今日やること</Text>
-          <Text style={styles.cardCount}>{todayTodos.length}件</Text>
+          <Text style={styles.cardCount}>{todayTasks.length}件</Text>
         </View>
-        {todayTodos.map((t) => (
-          <Pressable key={t.id} style={styles.todoRow}
-            onPress={() => {
-              if (t.link === 'customers')    router.push('/(tabs)/customers');
-              else if (t.link === 'products') router.push('/(tabs)/products');
-              else if (t.link === 'showroom') router.push('/showroom');
-            }}>
-            <View style={[styles.dot, { backgroundColor:
-              t.color === 'red' ? Accent.red : t.color === 'amber' ? Accent.amber : Accent.emerald }]} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.todoTitle}>{t.title}</Text>
-              <Text style={styles.todoSub}>{t.sub}</Text>
-            </View>
-            <Text style={styles.todoLink}>開く →</Text>
-          </Pressable>
-        ))}
+        {todayTasks.length === 0 ? (
+          <Text style={styles.todoEmpty}>やることは特にありません</Text>
+        ) : (
+          todayTasks.map((t) => (
+            <Pressable
+              key={t.entity_id}
+              style={styles.todoRow}
+              onPress={() => {
+                if (t.link === 'customers') router.push('/(tabs)/customers');
+                else if (t.link === 'products') router.push('/(tabs)/products');
+                else if (t.link === 'showroom') router.push('/showroom');
+              }}
+            >
+              <View
+                style={[
+                  styles.dot,
+                  {
+                    backgroundColor:
+                      t.color === 'red' ? Accent.red : t.color === 'amber' ? Accent.amber : Accent.emerald,
+                  },
+                ]}
+              />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.todoTitle}>{t.title}</Text>
+                <Text style={styles.todoSub}>{t.sub}</Text>
+              </View>
+              <Text style={styles.todoLink}>開く →</Text>
+            </Pressable>
+          ))
+        )}
       </View>
 
       <Text style={styles.footerCredit}>MARUI BUSSAN × RANGER</Text>
@@ -157,6 +179,7 @@ const styles = StyleSheet.create({
   todoTitle: { fontSize: 13, color: Ink[900], fontWeight: '500' },
   todoSub: { fontSize: 11, color: Ink[500], marginTop: 2 },
   todoLink: { fontSize: 11, color: Brand.navy, fontWeight: '600' },
+  todoEmpty: { fontSize: 12, color: Ink[500], paddingVertical: 12, textAlign: 'center' },
 
   footerCredit: { textAlign: 'center', color: Ink[500], fontSize: 10, letterSpacing: 2, marginTop: 8 },
 });
