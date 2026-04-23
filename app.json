@@ -46,6 +46,13 @@
       "typedRoutes": true,
       "reactCompiler": true,
       "baseUrl": "/marui-ranger-app"
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "b07a600f-ee19-4fa1-a397-e958478c00b6"
+      }
+    },
+    "owner": "ekanbe"
   }
 }
