@@ -1,9 +1,15 @@
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { Screen } from '@/components/ranger/Screen';
-import { Accent, Brand, Ink, Radius } from '@/constants/theme';
+import { Badge } from '@/components/ui/Badge';
+import { Card } from '@/components/ui/Card';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { ListRow } from '@/components/ui/ListRow';
+import { SectionTitle } from '@/components/ui/SectionTitle';
+import { ShimmerCard } from '@/components/ui/Shimmer';
+import { Appetite, Brand, Ink, Radius } from '@/constants/theme';
 import { useProductDetail } from '@/hooks/use-product-detail';
 import { jpy } from '@/lib/format';
 
@@ -14,8 +20,9 @@ export default function ProductDetailScreen() {
   if (loading) {
     return (
       <Screen>
-        <View style={styles.loadingBox}>
-          <ActivityIndicator color={Brand.navy} />
+        <View style={{ gap: 12 }}>
+          <ShimmerCard />
+          <ShimmerCard />
         </View>
       </Screen>
     );
@@ -31,125 +38,137 @@ export default function ProductDetailScreen() {
 
   return (
     <Screen>
+      {/* ヒーロー：商品画像を前面に */}
       <View style={styles.hero}>
-        {detail.image_url ? (
-          <Image source={{ uri: detail.image_url }} style={styles.image} contentFit="cover" />
-        ) : (
-          <View style={[styles.image, styles.imagePlaceholder]} />
-        )}
+        <View style={styles.imageWrap}>
+          {detail.image_url ? (
+            <Image source={{ uri: detail.image_url }} style={styles.image} contentFit="cover" />
+          ) : (
+            <View style={[styles.image, { alignItems: 'center', justifyContent: 'center' }]}>
+              <Text style={{ fontSize: 48 }}>📦</Text>
+            </View>
+          )}
+        </View>
+        <Text style={styles.maker}>{detail.maker_name}</Text>
         <Text style={styles.name}>{detail.name}</Text>
-        <Text style={styles.meta}>
-          {detail.maker_name} / {detail.category ?? '-'}
-        </Text>
+        <View style={{ flexDirection: 'row', gap: 6, marginTop: 6, justifyContent: 'center' }}>
+          {detail.category ? <Badge label={detail.category} tone="navy" size="md" /> : null}
+        </View>
         <Text style={styles.price}>{jpy(detail.unit_price_jpy)}</Text>
       </View>
 
-      {detail.pain_solution && (
+      {/* 悲鳴 */}
+      {detail.pain_solution ? (
         <View style={styles.painBox}>
-          <Text style={styles.painLabel}>解決する悲鳴</Text>
+          <Text style={styles.painLabel}>💡 解決する悲鳴</Text>
           <Text style={styles.painText}>{detail.pain_solution}</Text>
         </View>
-      )}
+      ) : null}
 
-      {detail.pitch_script && (
+      {/* 提案トーク */}
+      {detail.pitch_script ? (
         <View style={styles.pitchBox}>
-          <Text style={styles.pitchLabel}>提案トーク</Text>
+          <Text style={styles.pitchLabel}>🎤 提案トーク</Text>
           <Text style={styles.pitchText}>{detail.pitch_script}</Text>
         </View>
+      ) : null}
+
+      {/* マッチする悲鳴 */}
+      {detail.solves_pain.length > 0 && (
+        <>
+          <SectionTitle title="マッチする悲鳴" />
+          <View style={styles.tagRow}>
+            {detail.solves_pain.map((t) => <Badge key={t} label={t} tone="ember" size="md" />)}
+          </View>
+        </>
       )}
 
-      {detail.solves_pain.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>マッチする悲鳴</Text>
-          <View style={styles.tagRow}>
-            {detail.solves_pain.map((t) => (
-              <View key={t} style={styles.tag}>
-                <Text style={styles.tagText}>{t}</Text>
-              </View>
-            ))}
-          </View>
+      {/* 推薦されている顧客 */}
+      <SectionTitle title="この商品が推薦されている顧客" caption={`${detail.recommended_customers.length} 店`} />
+      {detail.recommended_customers.length === 0 ? (
+        <EmptyState
+          icon="🤝"
+          title="推薦対象の顧客がいません"
+          message="商品属性と顧客の悲鳴がマッチする店舗があれば、ここに自動表示されます"
+        />
+      ) : (
+        <View style={{ gap: 10 }}>
+          {detail.recommended_customers.map((c) => {
+            const score = Math.min(100, Math.round(c.score * 100));
+            return (
+              <ListRow
+                key={c.id}
+                onPress={() => router.push({ pathname: '/customer/[id]', params: { id: c.id } })}
+                title={`${c.name}${c.branch_name ? ` ${c.branch_name}` : ''}`}
+                subtitle="タップで詳細を見る"
+                trailing={
+                  <View style={styles.scoreBox}>
+                    <Text style={styles.scoreText}>{score}</Text>
+                    <Text style={styles.scoreUnit}>%</Text>
+                  </View>
+                }
+              />
+            );
+          })}
         </View>
       )}
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>この商品が推薦されている顧客</Text>
-        {detail.recommended_customers.length === 0 ? (
-          <Text style={styles.empty}>推薦対象の顧客がいません</Text>
-        ) : (
-          detail.recommended_customers.map((c) => (
-            <Pressable
-              key={c.id}
-              onPress={() => router.push({ pathname: '/customer/[id]', params: { id: c.id } })}
-              style={styles.recommendedRow}
-            >
-              <View style={{ flex: 1 }}>
-                <Text style={styles.customerName}>
-                  {c.name}
-                  {c.branch_name ? ` ${c.branch_name}` : ''}
-                </Text>
-                <Text style={styles.customerArrow}>詳細を見る →</Text>
-              </View>
-              <View style={styles.scorePill}>
-                <Text style={styles.scoreText}>{Math.min(100, Math.round(c.score * 100))}%</Text>
-              </View>
-            </Pressable>
-          ))
-        )}
-      </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  loadingBox: { paddingVertical: 48, alignItems: 'center' },
   notFound: { paddingVertical: 48, textAlign: 'center', color: Ink[500] },
 
-  hero: { alignItems: 'center', marginBottom: 20 },
-  image: { width: 160, height: 160, borderRadius: Radius.lg, backgroundColor: Ink[100], marginBottom: 14 },
-  imagePlaceholder: { backgroundColor: Ink[100] },
-  name: { fontSize: 22, fontWeight: '800', color: Ink[900], textAlign: 'center' },
-  meta: { fontSize: 12, color: Ink[500], marginTop: 4 },
-  price: { fontSize: 20, fontWeight: '800', color: Brand.navy, marginTop: 10 },
+  hero: { alignItems: 'center', marginBottom: 20, marginTop: 8 },
+  imageWrap: {
+    width: 180,
+    height: 180,
+    borderRadius: Radius.xl,
+    overflow: 'hidden',
+    backgroundColor: Ink[100],
+    marginBottom: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    elevation: 4,
+  },
+  image: { width: 180, height: 180 },
+
+  maker: { fontSize: 11, color: Ink[500], fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase' },
+  name: { fontSize: 20, fontWeight: '800', color: Ink[900], textAlign: 'center', marginTop: 4, letterSpacing: -0.3 },
+  price: { fontSize: 26, fontWeight: '900', color: Brand.navy, marginTop: 12, letterSpacing: -0.5 },
 
   painBox: {
-    backgroundColor: 'rgba(239,68,68,0.08)',
+    backgroundColor: 'rgba(234,88,12,0.06)',
+    borderLeftWidth: 4,
+    borderLeftColor: Appetite.ember,
     borderRadius: Radius.md,
     padding: 14,
     marginBottom: 10,
   },
-  painLabel: { fontSize: 10, color: Accent.red, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase' },
-  painText: { fontSize: 14, color: Ink[900], marginTop: 6, fontWeight: '600' },
+  painLabel: { fontSize: 11, color: Appetite.ember, fontWeight: '800', letterSpacing: 0.5 },
+  painText: { fontSize: 14, color: Ink[900], marginTop: 6, fontWeight: '700', lineHeight: 20 },
 
   pitchBox: {
-    backgroundColor: 'rgba(30,58,95,0.05)',
+    backgroundColor: 'rgba(30,58,95,0.04)',
+    borderLeftWidth: 4,
+    borderLeftColor: Brand.navy,
     borderRadius: Radius.md,
     padding: 14,
     marginBottom: 18,
   },
-  pitchLabel: { fontSize: 10, color: Brand.navy, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase' },
+  pitchLabel: { fontSize: 11, color: Brand.navy, fontWeight: '800', letterSpacing: 0.5 },
   pitchText: { fontSize: 13, color: Ink[700], marginTop: 6, lineHeight: 20 },
 
-  section: { marginBottom: 18 },
-  sectionTitle: { fontSize: 13, fontWeight: '700', color: Ink[700], marginBottom: 10 },
+  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 20 },
 
-  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  tag: { backgroundColor: Ink[100], paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
-  tagText: { fontSize: 10, color: Ink[700] },
-
-  empty: { paddingVertical: 16, textAlign: 'center', color: Ink[500], fontSize: 12 },
-  recommendedRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: '#fff',
-    padding: 14,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    borderColor: Ink[100],
-    marginBottom: 8,
+  scoreBox: {
+    width: 52, height: 52, borderRadius: 26,
+    backgroundColor: Brand.navy,
+    alignItems: 'center', justifyContent: 'center',
+    flexDirection: 'row', gap: 1,
   },
-  customerName: { fontSize: 14, fontWeight: '600', color: Ink[900] },
-  customerArrow: { fontSize: 11, color: Brand.navy, fontWeight: '600', marginTop: 4 },
-  scorePill: { backgroundColor: Brand.navy, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999 },
-  scoreText: { color: '#fff', fontSize: 12, fontWeight: '800' },
+  scoreText: { color: '#fff', fontSize: 16, fontWeight: '900', letterSpacing: -0.3 },
+  scoreUnit: { color: '#fff', fontSize: 9, fontWeight: '700', marginTop: 4 },
 });

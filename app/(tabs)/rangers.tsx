@@ -1,18 +1,15 @@
 import { router } from 'expo-router';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Screen } from '@/components/ranger/Screen';
+import { Avatar } from '@/components/ui/Avatar';
+import { Badge } from '@/components/ui/Badge';
+import { Progress } from '@/components/ui/Progress';
+import { ShimmerList } from '@/components/ui/Shimmer';
 import { rankLabel } from '@/constants/labels';
 import { Brand, Ink, Radius } from '@/constants/theme';
 import { useAdminOverview } from '@/hooks/use-admin-overview';
 import { jpy } from '@/lib/format';
-
-const RANK_COLOR: Record<string, string> = {
-  platinum: '#8B7FB3',
-  gold: Brand.gold,
-  silver: '#9CA3AF',
-  bronze: '#B8764A',
-};
 
 export default function RangersScreen() {
   const { overview, loading } = useAdminOverview();
@@ -20,8 +17,9 @@ export default function RangersScreen() {
   if (loading || !overview) {
     return (
       <Screen>
-        <View style={styles.loadingBox}>
-          <ActivityIndicator color={Brand.navy} />
+        <Text style={styles.title}>レンジャー管理</Text>
+        <View style={{ marginTop: 12 }}>
+          <ShimmerList count={5} />
         </View>
       </Screen>
     );
@@ -39,29 +37,33 @@ export default function RangersScreen() {
       <View style={styles.listWrap}>
         {overview.rangers.map((r, i) => {
           const share = totalSales > 0 ? r.sales_jpy / totalSales : 0;
+          const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`;
+
           return (
             <Pressable
               key={r.ranger_id}
               onPress={() => router.push({ pathname: '/ranger/[id]', params: { id: r.ranger_id } })}
-              style={styles.card}
+              style={({ pressed }) => [styles.card, pressed && { opacity: 0.88 }]}
             >
               <View style={styles.cardTop}>
-                <Text style={[styles.rank, i < 3 && { color: Brand.gold, fontWeight: '900' }]}>
-                  #{i + 1}
-                </Text>
-                <View style={{ flex: 1 }}>
+                <Text style={[styles.rank, i < 3 && { fontSize: 24 }]}>{medal}</Text>
+                <Avatar name={r.display_name} size="md" />
+                <View style={{ flex: 1, marginLeft: 10 }}>
                   <Text style={styles.name}>{r.display_name}</Text>
-                  <View style={[styles.rankPill, { backgroundColor: RANK_COLOR[r.current_rank] ?? Ink[300] }]}>
-                    <Text style={styles.rankPillText}>{rankLabel(r.current_rank)}</Text>
+                  <View style={{ marginTop: 4, flexDirection: 'row', gap: 6 }}>
+                    <Badge label={rankLabel(r.current_rank)} tone={r.current_rank as any} />
                   </View>
                 </View>
-                <Text style={styles.sales}>{jpy(r.sales_jpy)}</Text>
-                <Text style={styles.arrow}>›</Text>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={styles.sales}>{jpy(r.sales_jpy)}</Text>
+                  <Text style={styles.salesLabel}>今月</Text>
+                </View>
               </View>
+
               <View style={styles.shareRow}>
-                <Text style={styles.shareLabel}>全社売上寄与度</Text>
-                <View style={styles.shareBar}>
-                  <View style={[styles.shareBarFill, { width: `${Math.round(share * 100)}%` }]} />
+                <Text style={styles.shareLabel}>寄与度</Text>
+                <View style={{ flex: 1 }}>
+                  <Progress progress={share} tone="navy" height={6} trackColor={Ink[100]} />
                 </View>
                 <Text style={styles.sharePct}>{Math.round(share * 100)}%</Text>
               </View>
@@ -71,50 +73,33 @@ export default function RangersScreen() {
       </View>
 
       <Text style={styles.note}>
-        ※ 将来：レンジャー個別の詳細（担当顧客一覧、契約情報、報酬率）・契約編集・休止/復帰の管理機能を追加予定
+        ※ 将来：契約編集・休止/復帰管理・個別の報酬率設定機能を追加予定
       </Text>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  title: { fontSize: 22, fontWeight: '800', color: Ink[900] },
+  title: { fontSize: 24, fontWeight: '800', color: Ink[900], letterSpacing: -0.3 },
   sub: { fontSize: 12, color: Ink[500], marginTop: 4, marginBottom: 18 },
-
-  loadingBox: { paddingVertical: 48, alignItems: 'center' },
 
   listWrap: { gap: 10, marginBottom: 20 },
   card: {
     backgroundColor: '#fff',
     borderRadius: Radius.lg,
-    padding: 14,
+    padding: 16,
     borderWidth: 1,
     borderColor: Ink[100],
   },
-  cardTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  rank: { width: 36, fontSize: 18, fontWeight: '800', color: Ink[700], textAlign: 'center' },
-  name: { fontSize: 15, fontWeight: '700', color: Ink[900] },
-  rankPill: { alignSelf: 'flex-start', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 999, marginTop: 4 },
-  rankPillText: { color: '#fff', fontSize: 9, fontWeight: '800', letterSpacing: 0.5 },
-  sales: { fontSize: 15, fontWeight: '800', color: Ink[900] },
+  cardTop: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  rank: { fontSize: 16, fontWeight: '800', color: Ink[700], textAlign: 'center', width: 36 },
+  name: { fontSize: 15, fontWeight: '800', color: Ink[900] },
+  sales: { fontSize: 16, fontWeight: '800', color: Brand.navy },
+  salesLabel: { fontSize: 10, color: Ink[500], marginTop: 2 },
 
-  shareRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 },
-  shareLabel: { fontSize: 10, color: Ink[500], width: 90 },
-  shareBar: {
-    flex: 1,
-    height: 6,
-    backgroundColor: Ink[100],
-    borderRadius: 999,
-    overflow: 'hidden',
-  },
-  shareBarFill: {
-    height: '100%',
-    backgroundColor: Brand.navy,
-    borderRadius: 999,
-  },
-  sharePct: { fontSize: 11, fontWeight: '700', color: Ink[700], width: 36, textAlign: 'right' },
+  shareRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 14 },
+  shareLabel: { fontSize: 10, color: Ink[500], width: 44, fontWeight: '700' },
+  sharePct: { fontSize: 11, fontWeight: '800', color: Ink[700], width: 38, textAlign: 'right' },
 
-  arrow: { fontSize: 20, color: Ink[300], marginLeft: 4 },
-
-  note: { fontSize: 10, color: Ink[500], textAlign: 'center', lineHeight: 14 },
+  note: { fontSize: 10, color: Ink[400], textAlign: 'center', lineHeight: 14 },
 });

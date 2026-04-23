@@ -1,20 +1,44 @@
 import { PropsWithChildren } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View, ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/theme';
 
-export function Screen({ children, scroll = true }: PropsWithChildren<{ scroll?: boolean }>) {
+type Props = {
+  scroll?: boolean;
+  padded?: boolean;
+  background?: 'default' | 'alt' | 'white';
+  style?: ViewStyle;
+};
+
+export function Screen({
+  children,
+  scroll = true,
+  padded = true,
+  background = 'alt',
+  style,
+}: PropsWithChildren<Props>) {
+  const bg =
+    background === 'white' ? '#FFFFFF' :
+    background === 'default' ? Colors.light.background :
+    Colors.light.surfaceAlt;
+
+  const bodyStyle = [
+    padded ? styles.bodyPadded : styles.body,
+    style,
+  ];
+
   const body = scroll ? (
-    <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+    <ScrollView contentContainerStyle={bodyStyle} showsVerticalScrollIndicator={false}>
       {children}
     </ScrollView>
   ) : (
-    <View style={styles.body}>{children}</View>
+    <View style={[bodyStyle, { flex: 1 }]}>{children}</View>
   );
-  return <SafeAreaView edges={['top']} style={styles.safe}>{body}</SafeAreaView>;
+  return <SafeAreaView edges={['top']} style={[styles.safe, { backgroundColor: bg }]}>{body}</SafeAreaView>;
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.light.surfaceAlt },
-  body: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 96 },
+  safe: { flex: 1 },
+  body: { paddingBottom: 96 },
+  bodyPadded: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 96 },
 });

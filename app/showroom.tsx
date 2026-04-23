@@ -1,9 +1,15 @@
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { Screen } from '@/components/ranger/Screen';
-import { Accent, Brand, Ink, Radius } from '@/constants/theme';
+import { Badge } from '@/components/ui/Badge';
+import { Card } from '@/components/ui/Card';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { HeroCard } from '@/components/ui/HeroCard';
+import { SectionTitle } from '@/components/ui/SectionTitle';
+import { ShimmerList } from '@/components/ui/Shimmer';
+import { Ink, Radius } from '@/constants/theme';
 import { useAuth } from '@/hooks/use-auth';
-import { useShowroom, type ShowroomStatus } from '@/hooks/use-showroom';
+import { type ShowroomStatus, useShowroom } from '@/hooks/use-showroom';
 
 const STATUS_LABEL: Record<ShowroomStatus, string> = {
   invited: '招待済',
@@ -11,15 +17,15 @@ const STATUS_LABEL: Record<ShowroomStatus, string> = {
   visited: '来場済',
   cancelled: '中止',
 };
-const STATUS_COLOR: Record<ShowroomStatus, string> = {
-  invited: Accent.amber,
-  confirmed: Brand.navy,
-  visited: Accent.emerald,
-  cancelled: Ink[500],
+const STATUS_TONE: Record<ShowroomStatus, 'amber' | 'navy' | 'emerald' | 'neutral'> = {
+  invited: 'amber',
+  confirmed: 'navy',
+  visited: 'emerald',
+  cancelled: 'neutral',
 };
 
 function fmt(ts: string | null, includeTime = true) {
-  if (!ts) return '-';
+  if (!ts) return '—';
   return new Date(ts).toLocaleString('ja-JP', {
     month: '2-digit',
     day: '2-digit',
@@ -39,65 +45,59 @@ export default function ShowroomScreen() {
       <Text style={styles.title}>ショールーム</Text>
       <Text style={styles.sub}>恵比寿・マルイ物産ショールーム</Text>
 
-      {/* ヒーロー */}
-      <View style={styles.hero}>
-        <Text style={styles.heroLabel}>今月の来場予定</Text>
-        <Text style={styles.heroValue}>
-          {upcoming.length}
-          <Text style={styles.heroUnit}>件</Text>
-        </Text>
-        <Text style={styles.heroSub}>招待 → 来場 → 商談 → 受注 を一気通貫でトラッキング</Text>
-      </View>
+      <HeroCard
+        label="今月の来場予定"
+        value={`${upcoming.length}件`}
+        tone="gold"
+        sub="招待 → 来場 → 商談 → 受注 を一気通貫でトラッキング"
+        style={{ marginBottom: 20 }}
+      />
 
       {loading ? (
-        <View style={styles.loadingBox}>
-          <ActivityIndicator color={Brand.navy} />
-        </View>
+        <ShimmerList count={3} />
       ) : (
         <>
-          <Text style={styles.sectionTitle}>予定</Text>
+          <SectionTitle title="予定" caption={`${upcoming.length} 件`} />
           <View style={{ gap: 10, marginBottom: 20 }}>
             {upcoming.length === 0 ? (
-              <Text style={styles.empty}>予定はありません</Text>
+              <EmptyState
+                icon="📅"
+                title="予定はありません"
+                message="新規顧客をショールームに招待しましょう"
+              />
             ) : (
               upcoming.map((s) => (
-                <View key={s.id} style={styles.card}>
+                <Card key={s.id} variant="surface" padding={16}>
                   <View style={styles.cardHeader}>
-                    <Text style={styles.name}>{s.customer_name}</Text>
-                    <View style={[styles.statusPill, { backgroundColor: `${STATUS_COLOR[s.status]}18` }]}>
-                      <Text style={[styles.statusText, { color: STATUS_COLOR[s.status] }]}>
-                        {STATUS_LABEL[s.status]}
-                      </Text>
-                    </View>
+                    <Text style={styles.name} numberOfLines={1}>{s.customer_name}</Text>
+                    <Badge label={STATUS_LABEL[s.status]} tone={STATUS_TONE[s.status]} />
                   </View>
-                  <Text style={styles.schedule}>{fmt(s.scheduled_at)}</Text>
-                  {s.memo && <Text style={styles.memo}>{s.memo}</Text>}
-                </View>
+                  <Text style={styles.schedule}>📅 {fmt(s.scheduled_at)}</Text>
+                  {s.memo ? <Text style={styles.memo}>{s.memo}</Text> : null}
+                </Card>
               ))
             )}
           </View>
 
-          <Text style={styles.sectionTitle}>来場実績</Text>
+          <SectionTitle title="来場実績" caption={`${past.length} 件`} />
           <View style={{ gap: 10 }}>
             {past.length === 0 ? (
-              <Text style={styles.empty}>来場実績はまだありません</Text>
+              <EmptyState icon="✨" title="来場実績はまだありません" />
             ) : (
               past.map((s) => (
                 <View key={s.id} style={styles.cardVisited}>
                   <View style={styles.cardHeader}>
-                    <Text style={styles.name}>{s.customer_name}</Text>
-                    <View style={[styles.statusPill, { backgroundColor: 'rgba(16,185,129,0.15)' }]}>
-                      <Text style={[styles.statusText, { color: Accent.emerald }]}>来場済</Text>
-                    </View>
+                    <Text style={styles.name} numberOfLines={1}>{s.customer_name}</Text>
+                    <Badge label="来場済" tone="emerald" />
                   </View>
-                  <Text style={styles.schedule}>{fmt(s.scheduled_at, false)}</Text>
-                  {s.tasted_products.length > 0 && (
+                  <Text style={styles.schedule}>📅 {fmt(s.scheduled_at, false)}</Text>
+                  {s.tasted_products.length > 0 ? (
                     <View style={styles.tastedRow}>
                       <Text style={styles.tastedLabel}>試食：</Text>
-                      <Text style={styles.tastedValue}>{s.tasted_products.join(', ')}</Text>
+                      <Text style={styles.tastedValue}>{s.tasted_products.join('、')}</Text>
                     </View>
-                  )}
-                  {s.memo && <Text style={styles.memo}>{s.memo}</Text>}
+                  ) : null}
+                  {s.memo ? <Text style={styles.memo}>{s.memo}</Text> : null}
                 </View>
               ))
             )}
@@ -109,20 +109,9 @@ export default function ShowroomScreen() {
 }
 
 const styles = StyleSheet.create({
-  title: { fontSize: 24, fontWeight: '800', color: Ink[900] },
+  title: { fontSize: 24, fontWeight: '800', color: Ink[900], letterSpacing: -0.3 },
   sub: { fontSize: 12, color: Ink[500], marginTop: 4, marginBottom: 16 },
 
-  hero: { backgroundColor: Brand.navy, borderRadius: Radius.xl, padding: 22, marginBottom: 20 },
-  heroLabel: { color: 'rgba(255,255,255,0.7)', fontSize: 11, letterSpacing: 1, textTransform: 'uppercase' },
-  heroValue: { color: '#fff', fontSize: 44, fontWeight: '800', marginTop: 6 },
-  heroUnit: { fontSize: 16, fontWeight: '500' },
-  heroSub: { color: 'rgba(255,255,255,0.7)', fontSize: 11, marginTop: 10 },
-
-  loadingBox: { paddingVertical: 48, alignItems: 'center' },
-  empty: { paddingVertical: 16, textAlign: 'center', color: Ink[500], fontSize: 12 },
-  sectionTitle: { fontSize: 13, fontWeight: '700', color: Ink[700], marginBottom: 10 },
-
-  card: { backgroundColor: '#fff', borderRadius: Radius.lg, padding: 16, borderWidth: 1, borderColor: Ink[100] },
   cardVisited: {
     backgroundColor: '#fff',
     borderRadius: Radius.lg,
@@ -130,13 +119,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(16,185,129,0.25)',
   },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  name: { fontSize: 14, fontWeight: '700', color: Ink[900], flex: 1 },
-  statusPill: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999 },
-  statusText: { fontSize: 10, fontWeight: '700' },
-  schedule: { fontSize: 12, color: Ink[700], marginTop: 8 },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10 },
+  name: { fontSize: 14, fontWeight: '800', color: Ink[900], flex: 1 },
+  schedule: { fontSize: 12, color: Ink[700], marginTop: 10, fontWeight: '600' },
   tastedRow: { flexDirection: 'row', marginTop: 8, flexWrap: 'wrap' },
-  tastedLabel: { fontSize: 11, color: Ink[500] },
-  tastedValue: { fontSize: 11, color: Ink[900], fontWeight: '600' },
+  tastedLabel: { fontSize: 11, color: Ink[500], fontWeight: '700' },
+  tastedValue: { fontSize: 11, color: Ink[900], fontWeight: '700' },
   memo: { fontSize: 11, color: Ink[500], marginTop: 8, lineHeight: 16 },
 });

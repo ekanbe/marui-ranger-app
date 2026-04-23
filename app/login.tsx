@@ -7,7 +7,6 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -30,26 +29,38 @@ export default function LoginScreen() {
     if (error) setError(error.message);
   }
 
+  void Ink;
+
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.flex}
       >
+        {/* 背景装飾 */}
+        <View style={styles.bgGlow1} />
+        <View style={styles.bgGlow2} />
+
         <View style={styles.inner}>
-          <View>
+          {/* ブランドロゴ */}
+          <View style={{ marginTop: 40 }}>
+            <View style={styles.logoBox}>
+              <Text style={styles.logoIcon}>⚔️</Text>
+            </View>
             <Text style={styles.title}>RANGER</Text>
             <Text style={styles.subtitle}>MARUI BUSSAN</Text>
+            <Text style={styles.tagline}>外勤営業のための、戦略プラットフォーム</Text>
           </View>
 
+          {/* フォーム */}
           <View style={styles.form}>
             <View style={styles.field}>
-              <Text style={styles.label}>メールアドレス</Text>
+              <Text style={styles.label}>📧 メールアドレス</Text>
               <TextInput
                 value={email}
                 onChangeText={setEmail}
                 placeholder="you@marui-bussan.com"
-                placeholderTextColor="rgba(255,255,255,0.35)"
+                placeholderTextColor="rgba(255,255,255,0.3)"
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -59,7 +70,7 @@ export default function LoginScreen() {
 
             <View style={styles.field}>
               <View style={styles.labelRow}>
-                <Text style={styles.label}>パスワード</Text>
+                <Text style={styles.label}>🔒 パスワード</Text>
                 <Pressable onPress={() => setShowPassword((v) => !v)} hitSlop={8}>
                   <Text style={styles.toggleText}>{showPassword ? '隠す' : '表示'}</Text>
                 </Pressable>
@@ -68,34 +79,43 @@ export default function LoginScreen() {
                 value={password}
                 onChangeText={setPassword}
                 placeholder="••••••••"
-                placeholderTextColor="rgba(255,255,255,0.35)"
+                placeholderTextColor="rgba(255,255,255,0.3)"
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
                 autoCorrect={false}
                 autoComplete="current-password"
                 style={styles.input}
               />
-              {showPassword && password.length > 0 && (
-                <Text style={styles.charCount}>{password.length} 文字</Text>
-              )}
+              {showPassword && password.length > 0 ? (
+                <Text style={styles.charCount}>{password.length} 文字入力中</Text>
+              ) : null}
             </View>
 
-            {error && <Text style={styles.error}>{error}</Text>}
+            {error ? (
+              <View style={styles.errorBox}>
+                <Text style={styles.errorIcon}>⚠️</Text>
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            ) : null}
 
-            <TouchableOpacity
-              style={[styles.button, loading && styles.buttonDisabled]}
+            <Pressable
+              style={({ pressed }) => [
+                styles.button,
+                (loading || !email || !password) && styles.buttonDisabled,
+                pressed && { opacity: 0.9, transform: [{ scale: 0.99 }] },
+              ]}
               onPress={signIn}
               disabled={loading || !email || !password}
             >
               {loading ? (
                 <ActivityIndicator color={Brand.navy} />
               ) : (
-                <Text style={styles.buttonText}>ログイン</Text>
+                <Text style={styles.buttonText}>ログイン →</Text>
               )}
-            </TouchableOpacity>
+            </Pressable>
           </View>
 
-          <Text style={styles.footer}>v1.0.0 · クリエイティブインフラ</Text>
+          <Text style={styles.footer}>v1.9 · MARUI BUSSAN</Text>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -103,43 +123,85 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Brand.navy },
+  container: { flex: 1, backgroundColor: Brand.navyDeep },
   flex: { flex: 1 },
+
+  bgGlow1: {
+    position: 'absolute',
+    top: -120,
+    right: -100,
+    width: 340,
+    height: 340,
+    borderRadius: 170,
+    backgroundColor: Brand.gold,
+    opacity: 0.1,
+  },
+  bgGlow2: {
+    position: 'absolute',
+    bottom: -140,
+    left: -80,
+    width: 300,
+    height: 300,
+    borderRadius: 150,
+    backgroundColor: Brand.navyLight,
+    opacity: 0.25,
+  },
+
   inner: { flex: 1, padding: 32, justifyContent: 'space-between' },
 
-  title: { color: '#fff', fontSize: 32, fontWeight: '800', letterSpacing: 6, marginTop: 40 },
-  subtitle: { color: 'rgba(255,255,255,0.55)', fontSize: 11, letterSpacing: 4, marginTop: 4 },
+  logoBox: {
+    width: 64, height: 64, borderRadius: 18,
+    backgroundColor: 'rgba(201,168,118,0.18)',
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(201,168,118,0.35)',
+  },
+  logoIcon: { fontSize: 32 },
+  title: { color: '#fff', fontSize: 40, fontWeight: '900', letterSpacing: 8 },
+  subtitle: { color: 'rgba(201,168,118,0.8)', fontSize: 11, letterSpacing: 6, marginTop: 4, fontWeight: '700' },
+  tagline: { color: 'rgba(255,255,255,0.5)', fontSize: 12, marginTop: 16, lineHeight: 18 },
 
-  form: { gap: 16 },
-  field: { gap: 6 },
+  form: { gap: 18 },
+  field: { gap: 8 },
   labelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  label: { color: 'rgba(255,255,255,0.6)', fontSize: 11, letterSpacing: 1 },
-  toggleText: { color: '#C9A876', fontSize: 11, fontWeight: '700' },
-  charCount: { color: 'rgba(255,255,255,0.45)', fontSize: 10, textAlign: 'right' },
+  label: { color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: '700', letterSpacing: 0.5 },
+  toggleText: { color: Brand.gold, fontSize: 11, fontWeight: '800' },
+  charCount: { color: 'rgba(255,255,255,0.4)', fontSize: 10, textAlign: 'right', marginTop: 4 },
   input: {
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(255,255,255,0.07)',
     borderRadius: Radius.md,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingVertical: 14,
     color: '#fff',
     fontSize: 15,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.12)',
   },
-  error: { color: '#F87171', fontSize: 12 },
+
+  errorBox: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: 'rgba(239,68,68,0.12)',
+    borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)',
+    borderRadius: Radius.sm, padding: 10,
+  },
+  errorIcon: { fontSize: 14 },
+  errorText: { color: '#FCA5A5', fontSize: 12, flex: 1 },
 
   button: {
-    backgroundColor: '#C9A876',
+    backgroundColor: Brand.gold,
     borderRadius: Radius.md,
-    paddingVertical: 14,
+    paddingVertical: 16,
     alignItems: 'center',
-    marginTop: 12,
+    marginTop: 4,
+    shadowColor: Brand.gold,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 6,
   },
-  buttonDisabled: { opacity: 0.5 },
-  buttonText: { color: Brand.navy, fontWeight: '800', fontSize: 15, letterSpacing: 2 },
+  buttonDisabled: { opacity: 0.4 },
+  buttonText: { color: Brand.navyDark, fontWeight: '900', fontSize: 15, letterSpacing: 2 },
 
-  footer: { color: 'rgba(255,255,255,0.4)', fontSize: 10, textAlign: 'center', letterSpacing: 2 },
+  footer: { color: 'rgba(255,255,255,0.3)', fontSize: 10, textAlign: 'center', letterSpacing: 2 },
 });
-
-// Ink は将来拡張用（現状は未使用だが import を残しても問題ない）
-void Ink;

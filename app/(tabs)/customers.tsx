@@ -1,16 +1,24 @@
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Screen } from '@/components/ranger/Screen';
-import { Accent, Brand, Ink, Radius } from '@/constants/theme';
+import { Badge } from '@/components/ui/Badge';
+import { Chip, ChipRow } from '@/components/ui/Chip';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { ShimmerList } from '@/components/ui/Shimmer';
+import { Brand, Ink, Radius } from '@/constants/theme';
 import { type DerivedStatus, deriveStatus, useCustomers } from '@/hooks/use-customers';
 import { daysSince } from '@/lib/format';
 
 type Filter = 'all' | DerivedStatus;
 
 const STATUS_LABEL: Record<DerivedStatus, string> = { good: '好調', stall: '停滞', follow: '要フォロー' };
-const STATUS_COLOR: Record<DerivedStatus, string> = { good: Accent.emerald, stall: Accent.amber, follow: Accent.red };
+const STATUS_TONE: Record<DerivedStatus, 'emerald' | 'amber' | 'red'> = {
+  good: 'emerald',
+  stall: 'amber',
+  follow: 'red',
+};
 
 export default function CustomersScreen() {
   const { customers, loading } = useCustomers();
@@ -19,11 +27,7 @@ export default function CustomersScreen() {
   const [query, setQuery] = useState('');
 
   const enriched = useMemo(
-    () =>
-      customers.map((c) => ({
-        ...c,
-        derivedStatus: deriveStatus(c.last_ordered_at),
-      })),
+    () => customers.map((c) => ({ ...c, derivedStatus: deriveStatus(c.last_ordered_at) })),
     [customers]
   );
 
@@ -39,9 +43,7 @@ export default function CustomersScreen() {
 
   const bizTypes = useMemo(() => {
     const set = new Set<string>();
-    enriched.forEach((c) => {
-      if (c.business_type) set.add(c.business_type);
-    });
+    enriched.forEach((c) => { if (c.business_type) set.add(c.business_type); });
     return Array.from(set).sort();
   }, [enriched]);
 
@@ -55,91 +57,73 @@ export default function CustomersScreen() {
   return (
     <Screen>
       <View style={styles.header}>
-        <Text style={styles.title}>担当店舗</Text>
+        <View>
+          <Text style={styles.title}>担当店舗</Text>
+          <Text style={styles.subtitle}>{enriched.length} 店を担当中</Text>
+        </View>
         <Pressable style={styles.addBtn} onPress={() => router.push('/customer-new')}>
-          <Text style={styles.addBtnText}>+</Text>
+          <Text style={styles.addBtnText}>＋</Text>
         </Pressable>
       </View>
 
+      {/* 検索バー */}
       <View style={styles.searchRow}>
-        <Text style={styles.searchIcon}>⌕</Text>
+        <Text style={styles.searchIcon}>🔍</Text>
         <TextInput
-          placeholder="店名で検索"
-          placeholderTextColor={Ink[500]}
+          placeholder="店名・住所・業種で検索"
+          placeholderTextColor={Ink[400]}
           value={query}
           onChangeText={setQuery}
           style={styles.searchInput}
         />
+        {query ? (
+          <Pressable onPress={() => setQuery('')}>
+            <Text style={styles.clearIcon}>✕</Text>
+          </Pressable>
+        ) : null}
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll} contentContainerStyle={{ gap: 8 }}>
-        {(
-          [
-            ['all', `すべて ${counts.all}`],
-            ['good', `好調 ${counts.good}`],
-            ['stall', `停滞 ${counts.stall}`],
-            ['follow', `要フォロー ${counts.follow}`],
-          ] as const
-        ).map(([k, label]) => {
-          const active = filter === k;
-          return (
-            <Pressable
-              key={`s-${k}`}
-              onPress={() => setFilter(k as Filter)}
-              style={[styles.filterBtn, active && styles.filterBtnActive]}
-            >
-              <Text
-                style={[
-                  styles.filterText,
-                  active && styles.filterTextActive,
-                  k === 'follow' && !active && { color: Accent.red },
-                ]}
-              >
-                {label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
+      {/* ステータスフィルタ */}
+      <ChipRow style={{ marginBottom: 10 }}>
+        <Chip label="すべて" count={counts.all} active={filter === 'all'} onPress={() => setFilter('all')} />
+        <Chip label="好調" count={counts.good} active={filter === 'good'} onPress={() => setFilter('good')} />
+        <Chip label="停滞" count={counts.stall} active={filter === 'stall'} onPress={() => setFilter('stall')} />
+        <Chip label="要フォロー" count={counts.follow} active={filter === 'follow'} onPress={() => setFilter('follow')} />
+      </ChipRow>
 
+      {/* 業種フィルタ */}
       {bizTypes.length > 0 && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.filterScroll}
-          contentContainerStyle={{ gap: 8 }}
-        >
-          <Pressable
-            onPress={() => setBizFilter('all')}
-            style={[styles.bizBtn, bizFilter === 'all' && styles.bizBtnActive]}
-          >
-            <Text style={[styles.bizText, bizFilter === 'all' && styles.bizTextActive]}>業種: すべて</Text>
-          </Pressable>
+        <ChipRow style={{ marginBottom: 16 }}>
+          <Chip label="業種: すべて" active={bizFilter === 'all'} onPress={() => setBizFilter('all')} />
           {bizTypes.map((t) => (
-            <Pressable
+            <Chip
               key={`b-${t}`}
+              label={t}
+              active={bizFilter === t}
               onPress={() => setBizFilter(bizFilter === t ? 'all' : t)}
-              style={[styles.bizBtn, bizFilter === t && styles.bizBtnActive]}
-            >
-              <Text style={[styles.bizText, bizFilter === t && styles.bizTextActive]}>{t}</Text>
-            </Pressable>
+            />
           ))}
-        </ScrollView>
+        </ChipRow>
       )}
 
+      {/* リスト */}
       {loading ? (
-        <View style={styles.loadingBox}>
-          <ActivityIndicator color={Brand.navy} />
-        </View>
+        <ShimmerList count={4} />
       ) : list.length === 0 ? (
-        <View style={styles.emptyBox}>
-          <Text style={styles.emptyText}>該当する店舗がありません</Text>
-        </View>
+        <EmptyState
+          icon="🏪"
+          title="該当する店舗がありません"
+          message="検索条件やフィルタを変えてみてください"
+          actionLabel={query ? '検索をクリア' : undefined}
+          onAction={query ? () => setQuery('') : undefined}
+        />
       ) : (
         <View style={{ gap: 12 }}>
           {list.map((c) => {
-            const days = daysSince(c.last_ordered_at) ?? 0;
+            const days = daysSince(c.last_ordered_at);
+            const daysText = days == null ? '未発注' : `${days}日`;
             const alert = c.derivedStatus === 'follow';
+
             return (
               <Pressable
                 key={c.id}
@@ -148,30 +132,32 @@ export default function CustomersScreen() {
               >
                 <View style={styles.cardTop}>
                   <View style={{ flex: 1 }}>
-                    <View style={styles.statusRow}>
-                      <View style={[styles.dot, { backgroundColor: STATUS_COLOR[c.derivedStatus] }]} />
-                      <Text style={[styles.statusText, { color: STATUS_COLOR[c.derivedStatus] }]}>
-                        {STATUS_LABEL[c.derivedStatus]}
-                      </Text>
-                    </View>
-                    <Text style={styles.custName}>
+                    <Badge
+                      label={STATUS_LABEL[c.derivedStatus]}
+                      tone={STATUS_TONE[c.derivedStatus]}
+                      size="sm"
+                      dot
+                    />
+                    <Text style={styles.custName} numberOfLines={1}>
                       {c.name}
                       {c.branch_name ? ` ${c.branch_name}` : ''}
                     </Text>
-                    <Text style={styles.custMeta}>
-                      {c.business_type ?? '-'} / {c.address ?? '-'}
+                    <Text style={styles.custMeta} numberOfLines={1}>
+                      {c.business_type ?? '—'}・{c.address ?? '—'}
                     </Text>
                   </View>
-                  <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={styles.daysValue}>{days}日</Text>
-                    <Text style={styles.salesLabel}>最終発注から</Text>
+                  <View style={styles.daysBox}>
+                    <Text style={[styles.daysValue, alert && { color: '#DC2626' }]}>{daysText}</Text>
+                    <Text style={styles.daysLabel}>最終発注</Text>
                   </View>
                 </View>
-                <View style={[styles.cardBottom, alert && { borderTopColor: 'rgba(239,68,68,0.25)' }]}>
-                  <Text style={[styles.lastOrdered, alert && { color: Accent.red, fontWeight: '600' }]}>
-                    {alert ? 'しばらく発注なし' : '順調'}
+                <View style={[styles.cardBottom, alert && { borderTopColor: 'rgba(239,68,68,0.2)' }]}>
+                  <Text style={[styles.lastOrdered, alert && { color: '#DC2626', fontWeight: '700' }]}>
+                    {alert ? '⚠️ しばらく発注なし' : '✓ 順調'}
                   </Text>
-                  <Text style={styles.nextAction}>{alert ? '電話フォロー推奨 →' : '詳細を見る →'}</Text>
+                  <Text style={styles.nextAction}>
+                    {alert ? '今すぐフォロー →' : '詳細を見る →'}
+                  </Text>
                 </View>
               </Pressable>
             );
@@ -183,66 +169,55 @@ export default function CustomersScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
-  title: { fontSize: 24, fontWeight: '800', color: Ink[900] },
-  addBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: Ink[100], alignItems: 'center', justifyContent: 'center' },
-  addBtnText: { color: Ink[700], fontSize: 20, lineHeight: 22 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
+  title: { fontSize: 24, fontWeight: '800', color: Ink[900], letterSpacing: -0.3 },
+  subtitle: { fontSize: 12, color: Ink[500], marginTop: 4 },
+  addBtn: {
+    width: 44, height: 44, borderRadius: 22, backgroundColor: Brand.navy,
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: Brand.navyDark, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4,
+  },
+  addBtnText: { color: '#fff', fontSize: 22, lineHeight: 24, fontWeight: '500' },
 
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
     backgroundColor: '#fff',
     borderWidth: 1,
-    borderColor: Ink[100],
-    borderRadius: Radius.lg,
+    borderColor: Ink[200],
+    borderRadius: Radius.md,
     paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingVertical: 12,
     marginBottom: 14,
   },
-  searchIcon: { color: Ink[500], fontSize: 16 },
-  searchInput: { flex: 1, fontSize: 14, color: Ink[900] },
+  searchIcon: { fontSize: 14 },
+  searchInput: { flex: 1, fontSize: 14, color: Ink[900], padding: 0 },
+  clearIcon: { fontSize: 14, color: Ink[400], paddingHorizontal: 4 },
 
-  filterScroll: { marginBottom: 14, flexGrow: 0 },
-  filterBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 999,
+  card: {
     backgroundColor: '#fff',
+    borderRadius: Radius.lg,
+    padding: 16,
     borderWidth: 1,
     borderColor: Ink[100],
   },
-  filterBtnActive: { backgroundColor: Brand.navy, borderColor: Brand.navy },
-  filterText: { fontSize: 12, color: Ink[700], fontWeight: '600' },
-  filterTextActive: { color: '#fff' },
+  cardAlert: { borderWidth: 2, borderColor: 'rgba(239,68,68,0.35)', backgroundColor: 'rgba(239,68,68,0.02)' },
+  cardTop: { flexDirection: 'row', gap: 12, marginBottom: 10, alignItems: 'flex-start' },
+  custName: { fontSize: 16, fontWeight: '800', color: Ink[900], marginTop: 8 },
+  custMeta: { fontSize: 11, color: Ink[500], marginTop: 4 },
+  daysBox: { alignItems: 'flex-end' },
+  daysValue: { fontSize: 20, fontWeight: '800', color: Ink[900] },
+  daysLabel: { fontSize: 10, color: Ink[500], marginTop: 2 },
 
-  bizBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 999,
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: Ink[100],
+  cardBottom: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: Ink[100],
   },
-  bizBtnActive: { backgroundColor: Brand.gold, borderColor: Brand.gold },
-  bizText: { fontSize: 11, color: Ink[700], fontWeight: '500' },
-  bizTextActive: { color: '#fff', fontWeight: '700' },
-
-  loadingBox: { paddingVertical: 48, alignItems: 'center' },
-  emptyBox: { paddingVertical: 48, alignItems: 'center' },
-  emptyText: { color: Ink[500], fontSize: 13 },
-
-  card: { backgroundColor: '#fff', borderRadius: Radius.lg, padding: 16, borderWidth: 1, borderColor: Ink[100] },
-  cardAlert: { borderWidth: 2, borderColor: 'rgba(239,68,68,0.4)' },
-  cardTop: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
-  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  dot: { width: 8, height: 8, borderRadius: 4 },
-  statusText: { fontSize: 11, fontWeight: '700' },
-  custName: { fontSize: 16, fontWeight: '700', color: Ink[900], marginTop: 4 },
-  custMeta: { fontSize: 11, color: Ink[500], marginTop: 2 },
-  daysValue: { fontSize: 22, fontWeight: '800', color: Ink[900] },
-  salesLabel: { fontSize: 10, color: Ink[500] },
-  cardBottom: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: 10, borderTopWidth: 1, borderTopColor: Ink[100] },
   lastOrdered: { fontSize: 11, color: Ink[500] },
-  nextAction: { fontSize: 11, color: Brand.navy, fontWeight: '600' },
+  nextAction: { fontSize: 11, color: Brand.navy, fontWeight: '700' },
 });

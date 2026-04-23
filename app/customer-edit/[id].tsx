@@ -1,18 +1,12 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Alert, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Screen } from '@/components/ranger/Screen';
-import { Accent, Brand, Ink, Radius } from '@/constants/theme';
+import { Button } from '@/components/ui/Button';
+import { SectionTitle } from '@/components/ui/SectionTitle';
+import { ShimmerCard } from '@/components/ui/Shimmer';
+import { Brand, Ink, Radius } from '@/constants/theme';
 import { useCustomerDetail } from '@/hooks/use-customer-detail';
 import { supabase } from '@/lib/supabase';
 
@@ -70,8 +64,9 @@ export default function CustomerEditScreen() {
   if (loading) {
     return (
       <Screen>
-        <View style={styles.loadingBox}>
-          <ActivityIndicator color={Brand.navy} />
+        <View style={{ gap: 12 }}>
+          <ShimmerCard />
+          <ShimmerCard />
         </View>
       </Screen>
     );
@@ -82,23 +77,24 @@ export default function CustomerEditScreen() {
   return (
     <Screen>
       <Text style={styles.title}>顧客情報を編集</Text>
-      <Text style={styles.sub}>{detail?.customer_code ?? '-'}</Text>
+      <Text style={styles.sub}>{detail?.customer_code ?? '—'}</Text>
 
-      <Text style={styles.label}>店舗名 *</Text>
-      <TextInput value={name} onChangeText={setName} placeholderTextColor={Ink[500]} style={styles.input} />
+      <View style={styles.field}>
+        <Text style={styles.label}>店舗名 <Text style={styles.required}>*</Text></Text>
+        <TextInput value={name} onChangeText={setName} placeholderTextColor={Ink[400]} style={styles.input} />
+      </View>
 
-      <Text style={styles.label}>支店名</Text>
-      <TextInput
-        value={branchName}
-        onChangeText={setBranchName}
-        placeholderTextColor={Ink[500]}
-        style={styles.input}
-      />
+      <View style={styles.field}>
+        <Text style={styles.label}>支店名</Text>
+        <TextInput value={branchName} onChangeText={setBranchName} placeholderTextColor={Ink[400]} style={styles.input} />
+      </View>
 
-      <Text style={styles.label}>住所</Text>
-      <TextInput value={address} onChangeText={setAddress} placeholderTextColor={Ink[500]} style={styles.input} />
+      <View style={styles.field}>
+        <Text style={styles.label}>住所</Text>
+        <TextInput value={address} onChangeText={setAddress} placeholderTextColor={Ink[400]} style={styles.input} />
+      </View>
 
-      <Text style={styles.label}>業種</Text>
+      <SectionTitle title="業種" />
       <View style={styles.chipRow}>
         {BUSINESS_TYPES.map((t) => (
           <Pressable
@@ -111,60 +107,65 @@ export default function CustomerEditScreen() {
         ))}
       </View>
 
-      {error && <Text style={styles.error}>エラー: {error}</Text>}
+      {error ? <Text style={styles.error}>エラー: {error}</Text> : null}
 
-      <Pressable onPress={submit} disabled={!canSubmit} style={[styles.button, !canSubmit && styles.buttonDisabled]}>
-        {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>保存</Text>}
-      </Pressable>
+      <View style={{ marginTop: 20 }}>
+        <Button
+          label="保存"
+          variant="primary"
+          size="lg"
+          fullWidth
+          loading={submitting}
+          disabled={!canSubmit}
+          onPress={submit}
+        />
+      </View>
 
-      <Text style={styles.note}>※ 悲鳴タグの編集は顧客詳細画面で今後対応予定</Text>
+      <Text style={styles.note}>※ 悲鳴タグの編集は将来対応予定</Text>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  loadingBox: { paddingVertical: 48, alignItems: 'center' },
+  title: { fontSize: 24, fontWeight: '800', color: Ink[900], letterSpacing: -0.3 },
+  sub: { fontSize: 12, color: Ink[500], marginTop: 4, marginBottom: 20, fontWeight: '700', letterSpacing: 0.5 },
 
-  title: { fontSize: 22, fontWeight: '800', color: Ink[900] },
-  sub: { fontSize: 12, color: Ink[500], marginTop: 4, marginBottom: 20 },
-
-  label: { fontSize: 12, color: Ink[700], fontWeight: '600', marginBottom: 8, marginTop: 8 },
+  field: { marginBottom: 14 },
+  label: { fontSize: 12, color: Ink[700], fontWeight: '700', marginBottom: 8 },
+  required: { color: '#EF4444', fontWeight: '900' },
   input: {
     backgroundColor: '#fff',
     borderWidth: 1,
-    borderColor: Ink[100],
+    borderColor: Ink[200],
     borderRadius: Radius.md,
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingVertical: 13,
     fontSize: 14,
     color: Ink[900],
-    marginBottom: 8,
   },
 
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4 },
   chip: {
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 999,
     backgroundColor: '#fff',
     borderWidth: 1,
-    borderColor: Ink[100],
+    borderColor: Ink[200],
   },
   chipActive: { backgroundColor: Brand.navy, borderColor: Brand.navy },
-  chipText: { fontSize: 12, color: Ink[700], fontWeight: '600' },
+  chipText: { fontSize: 12, color: Ink[700], fontWeight: '700' },
   chipTextActive: { color: '#fff' },
 
-  error: { color: Accent.red, fontSize: 12, marginTop: 8, marginBottom: 8 },
-
-  button: {
-    backgroundColor: Brand.navy,
-    borderRadius: Radius.md,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 20,
+  error: {
+    color: '#DC2626',
+    fontSize: 12,
+    marginTop: 14,
+    padding: 10,
+    backgroundColor: 'rgba(239,68,68,0.06)',
+    borderRadius: Radius.sm,
+    textAlign: 'center',
   },
-  buttonDisabled: { opacity: 0.4 },
-  buttonText: { color: '#fff', fontSize: 15, fontWeight: '800', letterSpacing: 2 },
 
-  note: { fontSize: 10, color: Ink[500], textAlign: 'center', marginTop: 16 },
+  note: { fontSize: 10, color: Ink[400], textAlign: 'center', marginTop: 14 },
 });

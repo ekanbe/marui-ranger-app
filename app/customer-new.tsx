@@ -1,18 +1,11 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Alert, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Screen } from '@/components/ranger/Screen';
-import { Accent, Brand, Ink, Radius } from '@/constants/theme';
+import { Button } from '@/components/ui/Button';
+import { SectionTitle } from '@/components/ui/SectionTitle';
+import { Appetite, Brand, Ink, Radius } from '@/constants/theme';
 import { useAuth } from '@/hooks/use-auth';
 import { supabase } from '@/lib/supabase';
 
@@ -71,7 +64,6 @@ export default function NewCustomerScreen() {
       return;
     }
 
-    // 担当履歴（特許要件①）
     await supabase.from('customer_ranger_assignments').insert({
       customer_id: customer.id,
       ranger_id: session.user.id,
@@ -81,7 +73,6 @@ export default function NewCustomerScreen() {
       created_by: session.user.id,
     });
 
-    // 悲鳴
     if (pains.length > 0) {
       await supabase.from('customer_attributes').insert(
         pains.map((p) => ({
@@ -92,11 +83,10 @@ export default function NewCustomerScreen() {
       );
     }
 
-    // 推薦を初期生成（特許要件③）
     await supabase.rpc('fn_generate_recommendations', { p_customer_id: customer.id });
 
     setSubmitting(false);
-    const msg = `${name} を登録しました`;
+    const msg = `🎉 ${name} を登録しました`;
     if (Platform.OS === 'web') {
       if (typeof window !== 'undefined') window.alert(msg);
     } else {
@@ -112,28 +102,40 @@ export default function NewCustomerScreen() {
       <Text style={styles.title}>新規顧客登録</Text>
       <Text style={styles.sub}>担当店舗として登録します</Text>
 
-      <Text style={styles.label}>店舗名 *</Text>
-      <TextInput value={name} onChangeText={setName} placeholder="例：鼎泰豊" placeholderTextColor={Ink[500]} style={styles.input} />
+      <View style={styles.field}>
+        <Text style={styles.label}>店舗名 <Text style={styles.required}>*</Text></Text>
+        <TextInput
+          value={name}
+          onChangeText={setName}
+          placeholder="例：鼎泰豊"
+          placeholderTextColor={Ink[400]}
+          style={styles.input}
+        />
+      </View>
 
-      <Text style={styles.label}>支店名</Text>
-      <TextInput
-        value={branchName}
-        onChangeText={setBranchName}
-        placeholder="例：東京駅八重洲口店"
-        placeholderTextColor={Ink[500]}
-        style={styles.input}
-      />
+      <View style={styles.field}>
+        <Text style={styles.label}>支店名</Text>
+        <TextInput
+          value={branchName}
+          onChangeText={setBranchName}
+          placeholder="例：東京駅八重洲口店"
+          placeholderTextColor={Ink[400]}
+          style={styles.input}
+        />
+      </View>
 
-      <Text style={styles.label}>住所</Text>
-      <TextInput
-        value={address}
-        onChangeText={setAddress}
-        placeholder="例：東京都千代田区"
-        placeholderTextColor={Ink[500]}
-        style={styles.input}
-      />
+      <View style={styles.field}>
+        <Text style={styles.label}>住所</Text>
+        <TextInput
+          value={address}
+          onChangeText={setAddress}
+          placeholder="例：東京都千代田区"
+          placeholderTextColor={Ink[400]}
+          style={styles.input}
+        />
+      </View>
 
-      <Text style={styles.label}>業種</Text>
+      <SectionTitle title="業種" caption="1つ選択" />
       <View style={styles.chipRow}>
         {BUSINESS_TYPES.map((t) => (
           <Pressable
@@ -146,7 +148,7 @@ export default function NewCustomerScreen() {
         ))}
       </View>
 
-      <Text style={styles.label}>この店舗の悲鳴（複数選択可）</Text>
+      <SectionTitle title="この店舗の悲鳴" caption="複数選択可・推薦商品の生成に使われます" />
       <View style={styles.chipRow}>
         {PAIN_OPTIONS.map((p) => (
           <Pressable
@@ -154,47 +156,59 @@ export default function NewCustomerScreen() {
             onPress={() => togglePain(p.key)}
             style={[styles.painChip, pains.includes(p.key) && styles.painChipActive]}
           >
-            <Text style={[styles.painChipText, pains.includes(p.key) && styles.painChipTextActive]}>{p.label}</Text>
+            <Text style={[styles.painChipText, pains.includes(p.key) && styles.painChipTextActive]}>
+              {p.label}
+            </Text>
           </Pressable>
         ))}
       </View>
 
-      {error && <Text style={styles.error}>エラー: {error}</Text>}
+      {error ? <Text style={styles.error}>エラー: {error}</Text> : null}
 
-      <Pressable onPress={submit} disabled={!canSubmit} style={[styles.button, !canSubmit && styles.buttonDisabled]}>
-        {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>顧客を登録</Text>}
-      </Pressable>
+      <View style={{ marginTop: 24 }}>
+        <Button
+          label="顧客を登録"
+          variant="cta"
+          size="lg"
+          fullWidth
+          loading={submitting}
+          disabled={!canSubmit}
+          onPress={submit}
+        />
+      </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  title: { fontSize: 22, fontWeight: '800', color: Ink[900] },
+  title: { fontSize: 24, fontWeight: '800', color: Ink[900], letterSpacing: -0.3 },
   sub: { fontSize: 12, color: Ink[500], marginTop: 4, marginBottom: 20 },
 
-  label: { fontSize: 12, color: Ink[700], fontWeight: '600', marginBottom: 8, marginTop: 8 },
+  field: { marginBottom: 14 },
+  label: { fontSize: 12, color: Ink[700], fontWeight: '700', marginBottom: 8 },
+  required: { color: '#EF4444', fontWeight: '900' },
   input: {
     backgroundColor: '#fff',
     borderWidth: 1,
-    borderColor: Ink[100],
+    borderColor: Ink[200],
     borderRadius: Radius.md,
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingVertical: 13,
     fontSize: 14,
     color: Ink[900],
-    marginBottom: 8,
   },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
+
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4 },
   chip: {
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 999,
     backgroundColor: '#fff',
     borderWidth: 1,
-    borderColor: Ink[100],
+    borderColor: Ink[200],
   },
   chipActive: { backgroundColor: Brand.navy, borderColor: Brand.navy },
-  chipText: { fontSize: 12, color: Ink[700], fontWeight: '600' },
+  chipText: { fontSize: 12, color: Ink[700], fontWeight: '700' },
   chipTextActive: { color: '#fff' },
 
   painChip: {
@@ -203,24 +217,22 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: '#fff',
     borderWidth: 1,
-    borderColor: Ink[100],
+    borderColor: Ink[200],
   },
   painChipActive: {
-    backgroundColor: 'rgba(239,68,68,0.1)',
-    borderColor: Accent.red,
+    backgroundColor: 'rgba(234,88,12,0.08)',
+    borderColor: Appetite.ember,
   },
-  painChipText: { fontSize: 12, color: Ink[700], fontWeight: '600' },
-  painChipTextActive: { color: Accent.red, fontWeight: '700' },
+  painChipText: { fontSize: 12, color: Ink[700], fontWeight: '700' },
+  painChipTextActive: { color: Appetite.ember, fontWeight: '800' },
 
-  error: { color: Accent.red, fontSize: 12, marginTop: 8, marginBottom: 8 },
-
-  button: {
-    backgroundColor: Brand.navy,
-    borderRadius: Radius.md,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 20,
+  error: {
+    color: '#DC2626',
+    fontSize: 12,
+    marginTop: 14,
+    padding: 10,
+    backgroundColor: 'rgba(239,68,68,0.06)',
+    borderRadius: Radius.sm,
+    textAlign: 'center',
   },
-  buttonDisabled: { opacity: 0.4 },
-  buttonText: { color: '#fff', fontSize: 15, fontWeight: '800', letterSpacing: 2 },
 });

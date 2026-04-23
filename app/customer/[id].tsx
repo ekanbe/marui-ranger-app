@@ -1,27 +1,37 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { Screen } from '@/components/ranger/Screen';
-import { Accent, Brand, Ink, Radius } from '@/constants/theme';
+import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { SectionTitle } from '@/components/ui/SectionTitle';
+import { ShimmerCard } from '@/components/ui/Shimmer';
+import { Appetite, Brand, Ink, Radius } from '@/constants/theme';
 import { deriveStatus, type DerivedStatus } from '@/hooks/use-customers';
 import { useCustomerDetail } from '@/hooks/use-customer-detail';
 import { useCustomerOrders } from '@/hooks/use-customer-orders';
 import { daysSince, jpy, shortDate } from '@/lib/format';
 
 const STATUS_LABEL: Record<DerivedStatus, string> = { good: '好調', stall: '停滞', follow: '要フォロー' };
-const STATUS_COLOR: Record<DerivedStatus, string> = { good: Accent.emerald, stall: Accent.amber, follow: Accent.red };
+const STATUS_TONE: Record<DerivedStatus, 'emerald' | 'amber' | 'red'> = {
+  good: 'emerald',
+  stall: 'amber',
+  follow: 'red',
+};
 
-const ORDER_STATUS_LABEL: Record<'pending' | 'confirmed' | 'shipped' | 'cancelled', string> = {
+type OrderStatus = 'pending' | 'confirmed' | 'shipped' | 'cancelled';
+const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
   pending: '未確定',
   confirmed: '確定',
   shipped: '出荷済',
   cancelled: '中止',
 };
-const ORDER_STATUS_COLOR: Record<'pending' | 'confirmed' | 'shipped' | 'cancelled', string> = {
-  pending: Accent.amber,
-  confirmed: Accent.emerald,
-  shipped: Brand.navy,
-  cancelled: Ink[500],
+const ORDER_STATUS_TONE: Record<OrderStatus, 'amber' | 'emerald' | 'navy' | 'neutral'> = {
+  pending: 'amber',
+  confirmed: 'emerald',
+  shipped: 'navy',
+  cancelled: 'neutral',
 };
 
 export default function CustomerDetailScreen() {
@@ -32,8 +42,9 @@ export default function CustomerDetailScreen() {
   if (loading) {
     return (
       <Screen>
-        <View style={styles.loading}>
-          <ActivityIndicator color={Brand.navy} />
+        <View style={{ gap: 12 }}>
+          <ShimmerCard />
+          <ShimmerCard />
         </View>
       </Screen>
     );
@@ -48,23 +59,22 @@ export default function CustomerDetailScreen() {
   }
 
   const status = deriveStatus(detail.last_ordered_at);
-  const days = daysSince(detail.last_ordered_at) ?? 0;
+  const days = daysSince(detail.last_ordered_at);
   const suggestions = detail.recommendations;
 
   return (
     <Screen>
-      <View style={styles.statusRow}>
-        <View style={[styles.dot, { backgroundColor: STATUS_COLOR[status] }]} />
-        <Text style={[styles.statusText, { color: STATUS_COLOR[status] }]}>{STATUS_LABEL[status]}</Text>
+      {/* ヘッダ */}
+      <View style={{ marginBottom: 16 }}>
+        <Badge label={STATUS_LABEL[status]} tone={STATUS_TONE[status]} size="md" dot />
+        <Text style={styles.name}>{detail.name}</Text>
+        {detail.branch_name ? <Text style={styles.branch}>{detail.branch_name}</Text> : null}
+        <Text style={styles.meta}>
+          {detail.business_type ?? '—'}・{detail.address ?? '—'}
+        </Text>
       </View>
-      <Text style={styles.name}>{detail.name}</Text>
-      <Text style={styles.branch}>
-        {detail.branch_name ? `${detail.branch_name} / ` : ''}
-        {detail.business_type ?? '-'}
-      </Text>
-      <Text style={styles.address}>{detail.address ?? '-'}</Text>
 
-      {/* サマリー */}
+      {/* サマリー3枚 */}
       <View style={styles.summaryRow}>
         <View style={styles.summaryCard}>
           <Text style={styles.summaryLabel}>今月売上</Text>
@@ -74,186 +84,175 @@ export default function CustomerDetailScreen() {
           <Text style={styles.summaryLabel}>累計売上</Text>
           <Text style={styles.summaryValue}>{jpy(detail.totalSalesJpy)}</Text>
         </View>
-        <View style={styles.summaryCard}>
-          <Text style={styles.summaryLabel}>自分のマージン</Text>
-          <Text style={styles.summaryValue}>{jpy(detail.monthMarginJpy)}</Text>
+        <View style={styles.summaryCardAccent}>
+          <Text style={styles.summaryLabelAccent}>自分のマージン</Text>
+          <Text style={styles.summaryValueAccent}>{jpy(detail.monthMarginJpy)}</Text>
         </View>
       </View>
 
-      {/* 悲鳴 */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>この店舗の悲鳴</Text>
-        <View style={styles.painRow}>
-          {detail.painPoints.length > 0 ? (
-            detail.painPoints.map((p) => (
-              <View key={p} style={styles.painTag}>
-                <Text style={styles.painTagText}>{p}</Text>
-              </View>
-            ))
-          ) : (
-            <Text style={styles.emptyInline}>登録されていません</Text>
-          )}
-        </View>
-      </View>
-
-      {/* アクションボタン */}
-      <View style={styles.actionRow}>
-        <Pressable
-          onPress={() => router.push({ pathname: '/order-new/[customerId]', params: { customerId: detail.id } })}
-          style={[styles.actionButton, styles.actionButtonPrimary]}
-        >
-          <Text style={styles.actionButtonText}>＋ 受注入力</Text>
-        </Pressable>
-        <Pressable
-          onPress={() => router.push({ pathname: '/customer-edit/[id]', params: { id: detail.id } })}
-          style={[styles.actionButton, styles.actionButtonSecondary]}
-        >
-          <Text style={[styles.actionButtonText, { color: Brand.navy }]}>編集</Text>
-        </Pressable>
-      </View>
-
-      {/* 発注サマリー */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>発注ステータス</Text>
-        <View style={styles.statusBox}>
-          <Text style={[styles.statusBigLabel, { color: STATUS_COLOR[status] }]}>最終発注 {days}日前</Text>
-          <Text style={styles.statusNote}>
-            {status === 'follow'
-              ? '電話フォローを推奨します'
-              : status === 'stall'
-              ? '新商品提案で動きを作りましょう'
-              : '継続順調。次の提案ネタ候補は以下'}
+      {/* 発注ステータスバナー */}
+      <View style={[styles.statusBanner, styles[`banner_${status}`]]}>
+        <Text style={styles.statusBannerIcon}>{status === 'follow' ? '⚠️' : status === 'stall' ? '⏳' : '✓'}</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.statusBannerTitle}>
+            最終発注 {days == null ? '未発注' : `${days}日前`}
+          </Text>
+          <Text style={styles.statusBannerSub}>
+            {status === 'follow' ? '今すぐ電話フォロー推奨' :
+             status === 'stall' ? '新商品の提案で動きを作りましょう' :
+             '順調です。次の提案ネタも用意しました'}
           </Text>
         </View>
       </View>
 
-      {/* 直近の受注履歴 */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>直近の受注（{orders.length}件）</Text>
-        {orders.length === 0 ? (
-          <Text style={styles.emptyInline}>まだ受注がありません</Text>
-        ) : (
-          <View style={{ gap: 8 }}>
-            {orders.map((o) => (
-              <View key={o.id} style={styles.orderRow}>
-                <View style={styles.orderTopRow}>
-                  <Text style={styles.orderDate}>{shortDate(o.ordered_at)}</Text>
-                  <View
-                    style={[
-                      styles.orderStatusPill,
-                      { backgroundColor: `${ORDER_STATUS_COLOR[o.status]}18` },
-                    ]}
-                  >
-                    <Text style={[styles.orderStatusText, { color: ORDER_STATUS_COLOR[o.status] }]}>
-                      {ORDER_STATUS_LABEL[o.status]}
-                    </Text>
-                  </View>
-                  <Text style={styles.orderAmount}>{jpy(o.total_amount_jpy)}</Text>
-                </View>
-                {o.items.map((item, idx) => (
-                  <Text key={idx} style={styles.orderItemText}>
-                    ・{item.product_name} × {item.quantity.toLocaleString()}
-                  </Text>
-                ))}
-              </View>
-            ))}
-          </View>
-        )}
+      {/* アクション */}
+      <View style={styles.actionRow}>
+        <View style={{ flex: 2 }}>
+          <Button
+            label="＋ 受注入力"
+            variant="cta"
+            size="lg"
+            fullWidth
+            onPress={() => router.push({ pathname: '/order-new/[customerId]', params: { customerId: detail.id } })}
+          />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Button
+            label="編集"
+            variant="secondary"
+            size="lg"
+            fullWidth
+            onPress={() => router.push({ pathname: '/customer-edit/[id]', params: { id: detail.id } })}
+          />
+        </View>
       </View>
 
-      {/* 推薦商品（特許要件③：fn_generate_recommendations が生成） */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>次の提案候補（適合度順）</Text>
-        {suggestions.length === 0 ? (
+      {/* 悲鳴 */}
+      {detail.painPoints.length > 0 && (
+        <>
+          <SectionTitle title="この店舗の悲鳴" caption="登録されたペインポイント" />
+          <View style={styles.painRow}>
+            {detail.painPoints.map((p) => <Badge key={p} label={p} tone="red" size="md" />)}
+          </View>
+        </>
+      )}
+
+      {/* 提案候補 */}
+      <SectionTitle title="次の提案候補" caption="適合度順" />
+      {suggestions.length === 0 ? (
+        <Card variant="muted" padding={16}>
           <Text style={styles.emptyInline}>推薦商品がまだ生成されていません</Text>
-        ) : (
-          suggestions.map((s) => (
-            <View key={s.id} style={styles.suggestion}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.suggestName}>{s.product_name}</Text>
-                {s.pitch_script && (
-                  <Text style={styles.suggestPitch} numberOfLines={2}>
-                    {s.pitch_script}
-                  </Text>
-                )}
+        </Card>
+      ) : (
+        <View style={{ gap: 10, marginBottom: 18 }}>
+          {suggestions.map((s) => (
+            <Card key={s.id} variant="surface" padding={14}>
+              <View style={styles.suggRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.suggName}>{s.product_name}</Text>
+                  {s.pitch_script ? (
+                    <Text style={styles.suggPitch} numberOfLines={2}>{s.pitch_script}</Text>
+                  ) : null}
+                </View>
+                <View style={styles.scoreBox}>
+                  <Text style={styles.scoreText}>{Math.round(s.score * 100)}</Text>
+                  <Text style={styles.scoreUnit}>%</Text>
+                </View>
               </View>
-              <View style={styles.suggestScore}>
-                <Text style={styles.suggestScoreText}>{Math.round(s.score * 100)}%</Text>
+            </Card>
+          ))}
+        </View>
+      )}
+
+      {/* 直近の受注 */}
+      <SectionTitle title="直近の受注" caption={`${orders.length} 件`} />
+      {orders.length === 0 ? (
+        <Card variant="muted" padding={16}>
+          <Text style={styles.emptyInline}>まだ受注がありません</Text>
+        </Card>
+      ) : (
+        <View style={{ gap: 10 }}>
+          {orders.map((o) => (
+            <Card key={o.id} variant="surface" padding={14}>
+              <View style={styles.orderHeader}>
+                <Text style={styles.orderDate}>{shortDate(o.ordered_at)}</Text>
+                <Badge label={ORDER_STATUS_LABEL[o.status]} tone={ORDER_STATUS_TONE[o.status]} />
+                <Text style={styles.orderAmount}>{jpy(o.total_amount_jpy)}</Text>
               </View>
-            </View>
-          ))
-        )}
-      </View>
+              {o.items.map((item, idx) => (
+                <Text key={idx} style={styles.orderItemText}>
+                  ・{item.product_name} × {item.quantity.toLocaleString()}
+                </Text>
+              ))}
+            </Card>
+          ))}
+        </View>
+      )}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  loading: { paddingVertical: 48, alignItems: 'center' },
   notFound: { paddingVertical: 48, textAlign: 'center', color: Ink[500] },
 
-  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
-  dot: { width: 8, height: 8, borderRadius: 4 },
-  statusText: { fontSize: 11, fontWeight: '700' },
-  name: { fontSize: 22, fontWeight: '800', color: Ink[900] },
-  branch: { fontSize: 12, color: Ink[700], marginTop: 2 },
-  address: { fontSize: 11, color: Ink[500], marginTop: 2, marginBottom: 16 },
+  name: { fontSize: 24, fontWeight: '800', color: Ink[900], marginTop: 8, letterSpacing: -0.3 },
+  branch: { fontSize: 14, color: Ink[700], marginTop: 2, fontWeight: '600' },
+  meta: { fontSize: 11, color: Ink[500], marginTop: 4 },
 
-  summaryRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
-  summaryCard: { flex: 1, backgroundColor: '#fff', borderRadius: Radius.md, padding: 12, borderWidth: 1, borderColor: Ink[100] },
-  summaryLabel: { fontSize: 10, color: Ink[500], letterSpacing: 0.5 },
-  summaryValue: { fontSize: 15, fontWeight: '800', color: Ink[900], marginTop: 4 },
-
-  section: { marginBottom: 18 },
-  sectionTitle: { fontSize: 13, fontWeight: '700', color: Ink[700], marginBottom: 10 },
-
-  actionRow: { flexDirection: 'row', gap: 8, marginBottom: 18 },
-  actionButton: {
+  summaryRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
+  summaryCard: {
     flex: 1,
+    backgroundColor: '#fff',
     borderRadius: Radius.md,
-    paddingVertical: 14,
-    alignItems: 'center',
+    padding: 12,
+    borderWidth: 1,
+    borderColor: Ink[100],
   },
-  actionButtonPrimary: { backgroundColor: Brand.navy, flex: 2 },
-  actionButtonSecondary: { backgroundColor: '#fff', borderWidth: 1, borderColor: Brand.navy },
-  actionButtonText: { color: '#fff', fontSize: 14, fontWeight: '700', letterSpacing: 1 },
+  summaryCardAccent: {
+    flex: 1,
+    backgroundColor: Brand.navy,
+    borderRadius: Radius.md,
+    padding: 12,
+  },
+  summaryLabel: { fontSize: 10, color: Ink[500], letterSpacing: 0.3, fontWeight: '700' },
+  summaryValue: { fontSize: 15, fontWeight: '800', color: Ink[900], marginTop: 6 },
+  summaryLabelAccent: { fontSize: 10, color: 'rgba(255,255,255,0.7)', letterSpacing: 0.3, fontWeight: '700' },
+  summaryValueAccent: { fontSize: 15, fontWeight: '800', color: '#fff', marginTop: 6 },
 
-  painRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  painTag: { backgroundColor: 'rgba(239,68,68,0.08)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 },
-  painTagText: { fontSize: 12, color: Accent.red, fontWeight: '600' },
-  emptyInline: { fontSize: 12, color: Ink[500] },
-
-  statusBox: { backgroundColor: '#fff', padding: 14, borderRadius: Radius.md, borderWidth: 1, borderColor: Ink[100] },
-  statusBigLabel: { fontSize: 14, fontWeight: '700' },
-  statusNote: { fontSize: 12, color: Ink[500], marginTop: 6 },
-
-  suggestion: {
+  statusBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: '#fff',
     padding: 14,
     borderRadius: Radius.md,
     borderWidth: 1,
-    borderColor: Ink[100],
-    marginBottom: 8,
+    marginBottom: 14,
   },
-  suggestName: { fontSize: 13, fontWeight: '700', color: Ink[900] },
-  suggestPitch: { fontSize: 11, color: Ink[500], marginTop: 4, lineHeight: 15 },
-  suggestScore: { backgroundColor: Brand.navy, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 },
-  suggestScoreText: { color: '#fff', fontWeight: '800', fontSize: 12 },
+  banner_good: { backgroundColor: 'rgba(16,185,129,0.06)', borderColor: 'rgba(16,185,129,0.25)' },
+  banner_stall: { backgroundColor: 'rgba(245,158,11,0.06)', borderColor: 'rgba(245,158,11,0.3)' },
+  banner_follow: { backgroundColor: 'rgba(239,68,68,0.06)', borderColor: 'rgba(239,68,68,0.35)' },
+  statusBannerIcon: { fontSize: 22 },
+  statusBannerTitle: { fontSize: 13, fontWeight: '800', color: Ink[900] },
+  statusBannerSub: { fontSize: 11, color: Ink[600], marginTop: 2 },
 
-  orderRow: {
-    backgroundColor: '#fff',
-    padding: 12,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    borderColor: Ink[100],
+  actionRow: { flexDirection: 'row', gap: 8, marginBottom: 20 },
+
+  painRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 18 },
+  emptyInline: { fontSize: 12, color: Ink[500], textAlign: 'center' },
+
+  suggRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  suggName: { fontSize: 14, fontWeight: '800', color: Ink[900] },
+  suggPitch: { fontSize: 11, color: Ink[500], marginTop: 4, lineHeight: 15 },
+  scoreBox: {
+    width: 56, height: 56, borderRadius: 28,
+    backgroundColor: Appetite.ember, alignItems: 'center', justifyContent: 'center',
+    flexDirection: 'row', gap: 1,
   },
-  orderTopRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 },
-  orderDate: { fontSize: 11, color: Ink[500], fontWeight: '600', minWidth: 60 },
-  orderStatusPill: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999 },
-  orderStatusText: { fontSize: 10, fontWeight: '700' },
-  orderAmount: { fontSize: 13, fontWeight: '700', color: Ink[900], flex: 1, textAlign: 'right' },
-  orderItemText: { fontSize: 11, color: Ink[700], marginTop: 2 },
+  scoreText: { color: '#fff', fontSize: 18, fontWeight: '900', letterSpacing: -0.5 },
+  scoreUnit: { color: '#fff', fontSize: 10, fontWeight: '700', marginTop: 4 },
+
+  orderHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 },
+  orderDate: { fontSize: 11, color: Ink[500], fontWeight: '700', minWidth: 56 },
+  orderAmount: { fontSize: 14, fontWeight: '800', color: Ink[900], flex: 1, textAlign: 'right' },
+  orderItemText: { fontSize: 12, color: Ink[700], marginTop: 2, lineHeight: 16 },
 });
