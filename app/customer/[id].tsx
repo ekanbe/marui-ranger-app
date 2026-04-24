@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -7,7 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { SectionTitle } from '@/components/ui/SectionTitle';
 import { ShimmerCard } from '@/components/ui/Shimmer';
-import { Appetite, Brand, Ink, Radius } from '@/constants/theme';
+import { Brand, Ink, Radius } from '@/constants/theme';
 import { deriveStatus, type DerivedStatus } from '@/hooks/use-customers';
 import { useCustomerDetail } from '@/hooks/use-customer-detail';
 import { useCustomerOrders } from '@/hooks/use-customer-orders';
@@ -64,6 +65,20 @@ export default function CustomerDetailScreen() {
 
   return (
     <Screen back>
+      {/* 店舗画像ヒーロー */}
+      <View style={styles.heroImage}>
+        {detail.image_url ? (
+          <Image source={{ uri: detail.image_url }} style={styles.heroImg} contentFit="cover" />
+        ) : (
+          <View style={[styles.heroImg, styles.heroPlaceholder]}>
+            <Text style={styles.heroPlaceholderIcon}>🏪</Text>
+            <Text style={styles.heroPlaceholderText}>
+              {detail.business_type ?? '店舗'}
+            </Text>
+          </View>
+        )}
+      </View>
+
       {/* ヘッダ */}
       <View style={{ marginBottom: 16 }}>
         <Badge label={STATUS_LABEL[status]} tone={STATUS_TONE[status]} size="md" dot />
@@ -176,14 +191,23 @@ export default function CustomerDetailScreen() {
             <Card key={o.id} variant="surface" padding={14}>
               <View style={styles.orderHeader}>
                 <Text style={styles.orderDate}>{shortDate(o.ordered_at)}</Text>
+                {o.source === 'ec' ? (
+                  <View style={styles.ecOrderTag}>
+                    <Text style={styles.ecOrderTagText}>🔗 EC</Text>
+                  </View>
+                ) : null}
                 <Badge label={ORDER_STATUS_LABEL[o.status]} tone={ORDER_STATUS_TONE[o.status]} />
                 <Text style={styles.orderAmount}>{jpy(o.total_amount_jpy)}</Text>
               </View>
-              {o.items.map((item, idx) => (
-                <Text key={idx} style={styles.orderItemText}>
-                  ・{item.product_name} × {item.quantity.toLocaleString()}
-                </Text>
-              ))}
+              {o.source === 'ec' ? (
+                <Text style={styles.ecOrderSub}>foodboat.jp 経由の自動受注</Text>
+              ) : (
+                o.items.map((item, idx) => (
+                  <Text key={idx} style={styles.orderItemText}>
+                    ・{item.product_name} × {item.quantity.toLocaleString()}
+                  </Text>
+                ))
+              )}
             </Card>
           ))}
         </View>
@@ -194,6 +218,26 @@ export default function CustomerDetailScreen() {
 
 const styles = StyleSheet.create({
   notFound: { paddingVertical: 48, textAlign: 'center', color: Ink[500] },
+
+  heroImage: {
+    width: '100%',
+    height: 220,
+    borderRadius: Radius.lg,
+    overflow: 'hidden',
+    marginBottom: 16,
+    backgroundColor: Ink[100],
+  },
+  heroImg: { width: '100%', height: '100%' },
+  heroPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(30,58,95,0.04)',
+    borderWidth: 1,
+    borderColor: Ink[100],
+  },
+  heroPlaceholderIcon: { fontSize: 48 },
+  heroPlaceholderText: { fontSize: 12, color: Ink[500], fontWeight: '700', letterSpacing: 1 },
 
   name: { fontSize: 24, fontWeight: '800', color: Ink[900], marginTop: 8, letterSpacing: -0.3 },
   branch: { fontSize: 14, color: Ink[700], marginTop: 2, fontWeight: '600' },
@@ -245,7 +289,7 @@ const styles = StyleSheet.create({
   suggPitch: { fontSize: 11, color: Ink[500], marginTop: 4, lineHeight: 15 },
   scoreBox: {
     width: 56, height: 56, borderRadius: 28,
-    backgroundColor: Appetite.ember, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: Brand.navy, alignItems: 'center', justifyContent: 'center',
     flexDirection: 'row', gap: 1,
   },
   scoreText: { color: '#fff', fontSize: 18, fontWeight: '900', letterSpacing: -0.5 },
@@ -255,4 +299,14 @@ const styles = StyleSheet.create({
   orderDate: { fontSize: 11, color: Ink[500], fontWeight: '700', minWidth: 56 },
   orderAmount: { fontSize: 14, fontWeight: '800', color: Ink[900], flex: 1, textAlign: 'right' },
   orderItemText: { fontSize: 12, color: Ink[700], marginTop: 2, lineHeight: 16 },
+  ecOrderTag: {
+    backgroundColor: 'rgba(201,168,118,0.15)',
+    borderColor: Brand.gold,
+    borderWidth: 1,
+    borderRadius: 4,
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+  },
+  ecOrderTagText: { color: Brand.gold, fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
+  ecOrderSub: { fontSize: 11, color: Brand.gold, fontStyle: 'italic', marginTop: 2 },
 });

@@ -4,6 +4,7 @@ import type { Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 
 export type CommissionStatus = 'pending' | 'confirmed' | 'paid';
+export type OrderSource = 'manual' | 'ec' | 'showroom';
 
 export type CommissionRow = {
   id: string;
@@ -12,7 +13,9 @@ export type CommissionRow = {
   created_at: string;
   product_name: string;
   customer_name: string;
+  customer_image_url: string | null;
   ordered_at: string;
+  source: OrderSource;
 };
 
 type NestedCommission = {
@@ -26,7 +29,8 @@ type NestedCommission = {
         products: { name: string | null } | null;
         orders: {
           ordered_at: string;
-          customers: { name: string | null; branch_name: string | null } | null;
+          source: OrderSource | null;
+          customers: { name: string | null; branch_name: string | null; image_url: string | null } | null;
         } | null;
       }
     | null;
@@ -54,7 +58,8 @@ export function useCommissions(session: Session | null) {
              products ( name ),
              orders!inner (
                ordered_at,
-               customers ( name, branch_name )
+               source,
+               customers ( name, branch_name, image_url )
              )
            )`
         )
@@ -75,7 +80,9 @@ export function useCommissions(session: Session | null) {
           created_at: c.created_at,
           product_name: c.order_items?.products?.name ?? '-',
           customer_name: customerName || '-',
+          customer_image_url: cust?.image_url ?? null,
           ordered_at: c.order_items?.orders?.ordered_at ?? '',
+          source: (c.order_items?.orders?.source ?? 'manual') as OrderSource,
         };
       });
 

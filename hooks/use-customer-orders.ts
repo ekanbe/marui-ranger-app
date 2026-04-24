@@ -14,6 +14,7 @@ export type CustomerOrderRow = {
   ordered_at: string;
   total_amount_jpy: number;
   status: 'pending' | 'confirmed' | 'shipped' | 'cancelled';
+  source: 'manual' | 'ec' | 'showroom';
   items: CustomerOrderItem[];
 };
 
@@ -23,6 +24,7 @@ type NestedOrder = {
   ordered_at: string;
   total_amount_jpy: number | null;
   status: 'pending' | 'confirmed' | 'shipped' | 'cancelled';
+  source: 'manual' | 'ec' | 'showroom' | null;
   order_items:
     | {
         quantity: number;
@@ -48,7 +50,7 @@ export function useCustomerOrders(customerId: string | undefined, limit = 10) {
       const { data, error } = await supabase
         .from('orders')
         .select(
-          `id, order_code, ordered_at, total_amount_jpy, status,
+          `id, order_code, ordered_at, total_amount_jpy, status, source,
            order_items ( quantity, subtotal_jpy, products ( name ) )`
         )
         .eq('customer_id', customerId)
@@ -64,6 +66,7 @@ export function useCustomerOrders(customerId: string | undefined, limit = 10) {
         ordered_at: o.ordered_at,
         total_amount_jpy: Number(o.total_amount_jpy ?? 0),
         status: o.status,
+        source: (o.source ?? 'manual'),
         items: (o.order_items ?? []).map((i) => ({
           product_name: i.products?.name ?? '-',
           quantity: Number(i.quantity ?? 0),

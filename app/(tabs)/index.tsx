@@ -17,6 +17,7 @@ import { rankLabel, roleLabel } from '@/constants/labels';
 import { Accent, Brand, Ink, Radius } from '@/constants/theme';
 import { useAdminOverview } from '@/hooks/use-admin-overview';
 import { useAuth } from '@/hooks/use-auth';
+import { useCommissions } from '@/hooks/use-commissions';
 import { deriveStatus, useCustomers } from '@/hooks/use-customers';
 import { useHomeKpis } from '@/hooks/use-home-kpis';
 import { useMyRanger } from '@/hooks/use-my-ranger';
@@ -248,6 +249,7 @@ export default function HomeScreen() {
   const { customers } = useCustomers();
   const { tasks: allTasks } = useTodayTasks(session);
   const { ranger: myRanger } = useMyRanger(session);
+  const { rows: commissions } = useCommissions(session);
 
   const followTasks = allTasks.filter((t) => t.task_type === 'follow');
   const showroomTasks = allTasks.filter((t) => t.task_type === 'showroom');
@@ -271,6 +273,18 @@ export default function HomeScreen() {
   const customersFollow = customers.length
     ? customers.filter((c) => deriveStatus(c.last_ordered_at) === 'follow').length
     : k.customersFollow;
+
+  // ── EC継続収入：source=ec の commissions から算出 ──
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const ecCommissions = commissions.filter((c) => c.source === 'ec');
+  const ecThisMonthJpy = ecCommissions
+    .filter((c) => new Date(c.ordered_at) >= monthStart && c.status !== 'paid')
+    .reduce((s, c) => s + c.ranger_amount_jpy, 0);
+  const ecThisMonthCount = ecCommissions.filter(
+    (c) => new Date(c.ordered_at) >= monthStart
+  ).length;
+  const ecCustomerCount = new Set(ecCommissions.map((c) => c.customer_name).filter(Boolean)).size;
 
   return (
     <Screen>
@@ -371,6 +385,32 @@ export default function HomeScreen() {
           style={styles.gridItem}
         />
       </View>
+
+      {/* EC継続収入カード（source=ec の commissions 集計） */}
+      {ecCommissions.length > 0 ? (
+        <Pressable
+          onPress={() => router.push('/(tabs)/margin')}
+          style={styles.ecIncomeCard}
+        >
+          <View style={styles.ecIncomeLeft}>
+            <View style={styles.ecIncomeBadge}>
+              <Text style={styles.ecIncomeBadgeText}>EC継続</Text>
+            </View>
+            <Text style={styles.ecIncomeLabel}>foodboat.jp からの自動収入</Text>
+            <Text style={styles.ecIncomeValue}>{jpy(ecThisMonthJpy)}</Text>
+            <Text style={styles.ecIncomeSub}>
+              今月 {ecThisMonthCount} 件 ／ {ecCustomerCount} 人の顧客
+            </Text>
+          </View>
+          <View style={styles.ecIncomeRight}>
+            <Text style={styles.ecIncomeEmoji}>🔗</Text>
+            <Text style={styles.ecIncomeHint}>
+              紐付けた顧客が{'\n'}買うたびに自動計上
+            </Text>
+          </View>
+          <Text style={styles.ecIncomeArrow}>›</Text>
+        </Pressable>
+      ) : null}
 
       {/* 今日やること */}
       <SectionTitle title="今日やること" caption={`${todayTasks.length} 件`} />
@@ -556,6 +596,36 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Ink[100],
   },
+
+  // レンジャー用：EC継続収入カード
+  ecIncomeCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: Brand.navy,
+    borderRadius: Radius.lg,
+    padding: 16,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(201,168,118,0.4)',
+  },
+  ecIncomeLeft: { flex: 1 },
+  ecIncomeBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(201,168,118,0.2)',
+    borderColor: Brand.gold,
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingVertical: 2,
+    paddingHorizontal: 8,
+    marginBottom: 6,
+  },
+  ecIncomeBadgeText: { color: Brand.gold, fontSize: 10, fontWeight: '800', letterSpacing: 1 },
+  ecIncomeLabel: { color: 'rgba(255,255,255,0.72)', fontSize: 11, fontWeight: '600' },
+  ecIncomeValue: { color: Brand.gold, fontSize: 24, fontWeight: '900', marginTop: 2, letterSpacing: -0.3 },
+  ecIncomeSub: { color: 'rgba(255,255,255,0.6)', fontSize: 11, marginTop: 4 },
+  ecIncomeRight: { alignItems: 'center', gap: 4, opacity: 0.85 },
+  ecIncomeEmoji: { fontSize: 28 },
+  ecIncomeHint: { color: 'rgba(255,255,255,0.65)', fontSize: 10, textAlign: 'center', lineHeight: 14 },
+  ecIncomeArrow: { color: Brand.gold, fontSize: 22, fontWeight: '300' },
   ecSyncIconBox: {
     width: 40, height: 40, borderRadius: 20,
     backgroundColor: 'rgba(30,58,95,0.06)',
