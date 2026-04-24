@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -13,11 +14,12 @@ import { Progress } from '@/components/ui/Progress';
 import { SectionTitle } from '@/components/ui/SectionTitle';
 import { ShimmerCard } from '@/components/ui/Shimmer';
 import { rankLabel, roleLabel } from '@/constants/labels';
-import { Accent, Appetite, Brand, Ink, Radius } from '@/constants/theme';
+import { Accent, Brand, Ink, Radius } from '@/constants/theme';
 import { useAdminOverview } from '@/hooks/use-admin-overview';
 import { useAuth } from '@/hooks/use-auth';
 import { deriveStatus, useCustomers } from '@/hooks/use-customers';
 import { useHomeKpis } from '@/hooks/use-home-kpis';
+import { useMyRanger } from '@/hooks/use-my-ranger';
 import { useProfile } from '@/hooks/use-profile';
 import { useTodayTasks } from '@/hooks/use-today-tasks';
 import { jpy, pct } from '@/lib/format';
@@ -72,6 +74,33 @@ function AdminDashboard({ displayName, avatarUrl }: { displayName: string; avata
         </View>
       </HeroCard>
 
+      {/* 承認待ちアラート（最優先） */}
+      {overview.pendingApprovalCount > 0 ? (
+        <Pressable onPress={() => router.push('/approvals')} style={styles.approvalAlert}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.approvalTitle}>🔔 承認待ちの受注</Text>
+            <Text style={styles.approvalSub}>入金確認後に承認してください</Text>
+          </View>
+          <View style={styles.approvalCountBox}>
+            <Text style={styles.approvalCount}>{overview.pendingApprovalCount}</Text>
+            <Text style={styles.approvalUnit}>件</Text>
+          </View>
+          <Text style={styles.approvalArrow}>›</Text>
+        </Pressable>
+      ) : null}
+
+      {/* EC同期管理（管理者エントリ） */}
+      <Pressable onPress={() => router.push('/admin-ec-sync')} style={styles.ecSyncRow}>
+        <View style={styles.ecSyncIconBox}>
+          <Text style={styles.ecSyncIcon}>🔗</Text>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.ecSyncTitle}>EC同期管理</Text>
+          <Text style={styles.ecSyncSub}>foodboat.jp 連携 ／ 未マッチ注文の紐付け</Text>
+        </View>
+        <Text style={styles.ecSyncArrow}>›</Text>
+      </Pressable>
+
       {/* アラートカード 2枚 */}
       <View style={styles.row2}>
         <KpiCard
@@ -98,7 +127,7 @@ function AdminDashboard({ displayName, avatarUrl }: { displayName: string; avata
           label="📝 今月の登録"
           value={`${overview.newCustomerRegisteredCount}`}
           unit="店"
-          tone="navy"
+          tone="ink"
           delta="システム登録日"
           style={{ flex: 1 }}
         />
@@ -152,6 +181,7 @@ function AdminDashboard({ displayName, avatarUrl }: { displayName: string; avata
             </View>
             <Avatar name={r.display_name} imageUrl={r.avatar_url} size="sm" />
             <View style={{ flex: 1, marginLeft: 10 }}>
+              <Text style={styles.rangerNumber}>レンジャー{r.ranger_number}号</Text>
               <Text style={styles.rangerName}>{r.display_name}</Text>
               <Badge label={rankLabel(r.current_rank)} tone={r.current_rank as any} />
             </View>
@@ -217,6 +247,7 @@ export default function HomeScreen() {
   const { kpis } = useHomeKpis(session);
   const { customers } = useCustomers();
   const { tasks: allTasks } = useTodayTasks(session);
+  const { ranger: myRanger } = useMyRanger(session);
 
   const followTasks = allTasks.filter((t) => t.task_type === 'follow');
   const showroomTasks = allTasks.filter((t) => t.task_type === 'showroom');
@@ -243,12 +274,22 @@ export default function HomeScreen() {
 
   return (
     <Screen>
-      <HeaderBar displayName={displayName} avatarUrl={avatarUrl} roleLabel={roleLabel(role)} />
+      <HeaderBar
+        displayName={displayName}
+        avatarUrl={avatarUrl}
+        roleLabel={
+          role === 'ranger' && myRanger?.ranger_number
+            ? `レンジャー${myRanger.ranger_number}号`
+            : roleLabel(role)
+        }
+      />
 
       {/* 今月の売上ヒーロー */}
       <HeroCard label="今月の売上" value={jpy(k.monthSalesJpy)} tone="navy" style={{ marginBottom: 14 }}>
         <View style={styles.heroRow}>
-          <Text style={styles.heroGrowth}>▲ {pct(k.monthGrowthPct)}</Text>
+          <Text style={styles.heroGrowth}>
+            {k.monthGrowthPct >= 0 ? '↑' : '↓'} {pct(Math.abs(k.monthGrowthPct))}
+          </Text>
           <Text style={styles.heroPrev}>前月 {jpy(k.prevMonthSalesJpy)}</Text>
         </View>
         <View style={styles.heroDivider} />
@@ -271,26 +312,26 @@ export default function HomeScreen() {
       >
         <QuickAction
           label="新規受注"
-          icon="＋"
-          tone="ember"
+          iconSource={require('@/assets/icons/action-new-order.png')}
+          dotColor={Accent.emerald}
           onPress={() => router.push('/(tabs)/customers')}
         />
         <QuickAction
           label="顧客追加"
-          icon="🏪"
-          tone="navy"
+          iconSource={require('@/assets/icons/action-add-customer.png')}
+          dotColor={Brand.navy}
           onPress={() => router.push('/customer-new')}
         />
         <QuickAction
           label="ショールーム"
-          icon="✨"
-          tone="gold"
+          iconSource={require('@/assets/icons/action-showroom.png')}
+          dotColor={Brand.gold}
           onPress={() => router.push('/showroom')}
         />
         <QuickAction
           label="ランキング"
-          icon="🏆"
-          tone="violet"
+          iconSource={require('@/assets/icons/action-ranking.png')}
+          dotColor={Accent.amber}
           onPress={() => router.push('/ranking')}
         />
       </ScrollView>
@@ -316,7 +357,7 @@ export default function HomeScreen() {
           label="担当店舗"
           value={`${customerCount}`}
           unit="店"
-          tone="navy"
+          tone="ink"
           delta={`好調 ${customersGood} / 要フォロー ${customersFollow}`}
           style={styles.gridItem}
         />
@@ -324,7 +365,7 @@ export default function HomeScreen() {
           label="今月の新規受注"
           value={`${k.newOrdersCount}`}
           unit="件"
-          tone="ember"
+          tone="emerald"
           trend={k.newOrdersDelta >= 0 ? 'up' : 'down'}
           delta={`${Math.abs(k.newOrdersDelta)} 件 前月比`}
           style={styles.gridItem}
@@ -377,34 +418,36 @@ export default function HomeScreen() {
         </View>
       )}
 
-      <Text style={styles.footerCredit}>MARUI BUSSAN × RANGER</Text>
+      <View style={styles.footerRow}>
+        <Image source={require('@/assets/images/icon.png')} style={styles.footerLogo} contentFit="cover" />
+        <Text style={styles.footerCredit}>MARUI BUSSAN × RANGER</Text>
+      </View>
     </Screen>
   );
 }
 
 function QuickAction({
   label,
-  icon,
-  tone,
+  iconSource,
+  dotColor,
   onPress,
 }: {
   label: string;
-  icon: string;
-  tone: 'ember' | 'navy' | 'gold' | 'violet';
+  iconSource: number;
+  dotColor: string;
   onPress?: () => void;
 }) {
-  const bg =
-    tone === 'ember' ? Appetite.ember :
-    tone === 'navy' ? Brand.navy :
-    tone === 'gold' ? Brand.gold :
-    Accent.violet;
-
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [styles.quickCard, { backgroundColor: bg }, pressed && { opacity: 0.85 }]}
+      style={({ pressed }) => [styles.quickCard, pressed && { opacity: 0.85 }]}
     >
-      <Text style={styles.quickIcon}>{icon}</Text>
+      <View style={[styles.quickDot, { backgroundColor: dotColor }]} />
+      <Image
+        source={iconSource}
+        style={styles.quickIcon}
+        resizeMode="contain"
+      />
       <Text style={styles.quickLabel}>{label}</Text>
     </Pressable>
   );
@@ -436,14 +479,28 @@ const styles = StyleSheet.create({
   quickRow: { gap: 10, paddingRight: 16 },
   quickCard: {
     width: 96,
-    height: 84,
+    height: 96,
     borderRadius: Radius.md,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: Ink[100],
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
+    paddingTop: 10,
+    paddingBottom: 12,
+    position: 'relative',
   },
-  quickIcon: { fontSize: 24, color: '#fff' },
-  quickLabel: { fontSize: 11, fontWeight: '800', color: '#fff', letterSpacing: 0.5 },
+  quickDot: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  quickIcon: { width: 36, height: 36 },
+  quickLabel: { fontSize: 11, fontWeight: '800', color: Ink[900], letterSpacing: 0.5 },
 
   // Grid
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 16 },
@@ -471,8 +528,45 @@ const styles = StyleSheet.create({
     width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center',
   },
   trophyText: { fontSize: 13, fontWeight: '900' },
+  rangerNumber: { fontSize: 9, color: Ink[500], fontWeight: '800', letterSpacing: 1, marginBottom: 2 },
   rangerName: { fontSize: 13, fontWeight: '700', color: Ink[900], marginBottom: 4 },
   rangerSales: { fontSize: 14, fontWeight: '800', color: Ink[900] },
 
-  footerCredit: { textAlign: 'center', color: Ink[400], fontSize: 10, letterSpacing: 2, marginTop: 16 },
+  approvalAlert: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: 'rgba(245,158,11,0.08)',
+    borderWidth: 1, borderColor: 'rgba(245,158,11,0.35)',
+    borderRadius: Radius.lg,
+    padding: 14,
+    marginBottom: 12,
+  },
+  approvalTitle: { fontSize: 14, fontWeight: '800', color: '#B45309' },
+  approvalSub: { fontSize: 11, color: Ink[600], marginTop: 2 },
+  approvalCountBox: { flexDirection: 'row', alignItems: 'baseline', gap: 2 },
+  approvalCount: { fontSize: 24, fontWeight: '900', color: '#B45309' },
+  approvalUnit: { fontSize: 12, fontWeight: '700', color: '#B45309' },
+  approvalArrow: { fontSize: 22, color: '#B45309', fontWeight: '300' },
+
+  ecSyncRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: '#fff',
+    borderRadius: Radius.lg,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: Ink[100],
+  },
+  ecSyncIconBox: {
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: 'rgba(30,58,95,0.06)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  ecSyncIcon: { fontSize: 18 },
+  ecSyncTitle: { fontSize: 14, fontWeight: '800', color: Ink[900] },
+  ecSyncSub: { fontSize: 11, color: Ink[500], marginTop: 2 },
+  ecSyncArrow: { fontSize: 22, color: Ink[300], fontWeight: '300' },
+
+  footerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 20 },
+  footerLogo: { width: 18, height: 18, borderRadius: 4 },
+  footerCredit: { textAlign: 'center', color: Ink[400], fontSize: 10, letterSpacing: 2 },
 });

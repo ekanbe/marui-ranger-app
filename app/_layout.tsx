@@ -6,11 +6,15 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import 'react-native-reanimated';
 
+import { AdminShell } from '@/components/admin/AdminShell';
+import { PcOnlyScreen } from '@/components/admin/PcOnlyScreen';
 import { ErrorBoundary } from '@/components/ranger/ErrorBoundary';
 import { Brand } from '@/constants/theme';
 import { useAuth } from '@/hooks/use-auth';
 import { useAutoUpdate } from '@/hooks/use-auto-update';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useIsWide } from '@/hooks/use-is-wide';
+import { useProfile } from '@/hooks/use-profile';
 import { usePushToken } from '@/hooks/use-push-token';
 
 export const unstable_settings = {
@@ -19,8 +23,10 @@ export const unstable_settings = {
 
 function AuthGate({ children }: { children: React.ReactNode }) {
   const { session, loading } = useAuth();
+  const { profile, loading: profileLoading } = useProfile(session);
   const segments = useSegments();
   const router = useRouter();
+  const isWide = useIsWide();
   usePushToken(session);
   useAutoUpdate();
 
@@ -34,13 +40,24 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     }
   }, [session, loading, segments, router]);
 
-  if (loading) {
+  if (loading || (session && profileLoading)) {
     return (
       <View style={styles.loading}>
         <ActivityIndicator color={Brand.navy} />
       </View>
     );
   }
+
+  // ログイン済みかつ admin かつ 狭い画面 → PC専用画面
+  if (session && profile?.role === 'admin' && !isWide) {
+    return <PcOnlyScreen />;
+  }
+
+  // ログイン済みかつ admin かつ 広い画面 → AdminShell でラップ
+  if (session && profile?.role === 'admin' && isWide) {
+    return <AdminShell>{children}</AdminShell>;
+  }
+
   return <>{children}</>;
 }
 
@@ -61,6 +78,10 @@ export default function RootLayout() {
             <Stack.Screen name="order-new/[customerId]" />
             <Stack.Screen name="product/[id]" />
             <Stack.Screen name="ranger/[id]" />
+            <Stack.Screen name="ranger-new" />
+            <Stack.Screen name="ranger-edit/[id]" />
+            <Stack.Screen name="approvals" />
+            <Stack.Screen name="admin-ec-sync" />
             <Stack.Screen name="notifications" />
             <Stack.Screen name="ranking" />
             <Stack.Screen name="showroom" />
