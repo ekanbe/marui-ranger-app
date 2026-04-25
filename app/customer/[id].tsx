@@ -1,14 +1,16 @@
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
+import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { ShowroomInviteModal } from '@/components/showroom/ShowroomInviteModal';
 import { Screen } from '@/components/ranger/Screen';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { SectionTitle } from '@/components/ui/SectionTitle';
 import { ShimmerCard } from '@/components/ui/Shimmer';
-import { Brand, Ink, Radius } from '@/constants/theme';
+import { Accent, Brand, Ink, Radius } from '@/constants/theme';
 import { deriveStatus, type DerivedStatus } from '@/hooks/use-customers';
 import { useCustomerDetail } from '@/hooks/use-customer-detail';
 import { useCustomerOrders } from '@/hooks/use-customer-orders';
@@ -39,6 +41,7 @@ export default function CustomerDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { detail, loading } = useCustomerDetail(id);
   const { orders } = useCustomerOrders(id, 10);
+  const [inviteOpen, setInviteOpen] = useState(false);
 
   if (loading) {
     return (
@@ -141,6 +144,24 @@ export default function CustomerDetailScreen() {
           />
         </View>
       </View>
+
+      {/* ショールーム招待ボタン */}
+      <View style={{ marginTop: 10 }}>
+        <Button
+          label="🏬 ショールームに招待"
+          variant="secondary"
+          size="lg"
+          fullWidth
+          onPress={() => setInviteOpen(true)}
+        />
+      </View>
+
+      <ShowroomInviteModal
+        open={inviteOpen}
+        onClose={() => setInviteOpen(false)}
+        customerId={detail.id}
+        customerName={detail.name}
+      />
 
       {/* 悲鳴 */}
       {detail.painPoints.length > 0 && (

@@ -27,6 +27,7 @@ import {
   type UnmatchedBookingRow,
 } from '@/hooks/use-line-showroom';
 import { useProfile } from '@/hooks/use-profile';
+import { SHOWROOM_HOURS, useShowroomSlots } from '@/hooks/use-showroom-slots';
 import { jpy } from '@/lib/format';
 import { supabase } from '@/lib/supabase';
 
@@ -81,6 +82,7 @@ export default function AdminShowroomScreen() {
   const isAdmin = profile?.role === 'admin';
 
   const { data, loading, error, reload } = useLineShowroom();
+  const { slots, loading: slotsLoading } = useShowroomSlots(undefined, 14);
   const [picker, setPicker] = useState<UnmatchedBookingRow | null>(null);
   const [showLogs, setShowLogs] = useState(false);
 
@@ -203,6 +205,18 @@ export default function AdminShowroomScreen() {
                 </Card>
               ))}
             </View>
+          )}
+
+          {/* ── 2.5 空き枠カレンダー（直近14日） ── */}
+          <SectionTitle
+            title="空き枠カレンダー"
+            caption="直近14日 ／ 各日 6枠（10/11/13/14/15/16時開始）"
+            style={{ marginTop: 20 }}
+          />
+          {slotsLoading ? (
+            <ShimmerCard />
+          ) : (
+            <SlotCalendar slots={slots} />
           )}
 
           {/* ── 3. 予約一覧（日付別） ── */}
@@ -467,6 +481,100 @@ function UnmatchedPickerModal({
 }
 
 // ====================================================================
+// 空き枠カレンダー
+// ====================================================================
+import type { ShowroomSlot } from '@/hooks/use-showroom-slots';
+
+function SlotCalendar({ slots }: { slots: ShowroomSlot[] }) {
+  // slots を { [date]: { [hour]: slot } } にグルーピング
+  const grouped = useMemo(() => {
+    const map = new Map<string, Map<number, ShowroomSlot>>();
+    for (const s of slots) {
+      if (!map.has(s.slot_date)) map.set(s.slot_date, new Map());
+      map.get(s.slot_date)!.set(s.slot_hour, s);
+    }
+    return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
+  }, [slots]);
+
+  const today = new Date().toISOString().slice(0, 10);
+
+  return (
+    <Card variant="surface" padding={12}>
+      {/* 凡例 */}
+      <View style={styles.legendRow}>
+        <View style={styles.legendItem}>
+          <View style={[styles.legendDot, { backgroundColor: '#D1FAE5' }]} />
+          <Text style={styles.legendText}>空き</Text>
+        </View>
+        <View style={styles.legendItem}>
+          <View style={[styles.legendDot, { backgroundColor: '#FEF3C7' }]} />
+          <Text style={styles.legendText}>予約済</Text>
+        </View>
+        <View style={styles.legendItem}>
+          <View style={[styles.legendDot, { backgroundColor: '#FEE2E2' }]} />
+          <Text style={styles.legendText}>重複</Text>
+        </View>
+      </View>
+
+      {/* グリッド：左に日付、右に時間枠 */}
+      <View style={{ marginTop: 10 }}>
+        <View style={styles.calHeaderRow}>
+          <Text style={styles.calDateHeader}> </Text>
+          {SHOWROOM_HOURS.map((h) => (
+            <Text key={h} style={styles.calHourHeader}>
+              {h}:00
+            </Text>
+          ))}
+        </View>
+        {grouped.slice(0, 14).map(([date, hourMap]) => {
+          const isToday = date === today;
+          const isPast = date < today;
+          const d = new Date(date + 'T00:00:00+09:00');
+          const dateLabel = `${d.getMonth() + 1}/${d.getDate()}(${'日月火水木金土'[d.getDay()]})`;
+          return (
+            <View key={date} style={[styles.calRow, isToday && styles.calRowToday]}>
+              <Text style={[
+                styles.calDate,
+                isPast && { color: Ink[400] },
+                isToday && { color: Brand.gold, fontWeight: '900' }
+              ]}>
+                {dateLabel}
+              </Text>
+              {SHOWROOM_HOURS.map((h) => {
+                const s = hourMap.get(h);
+                const av = s?.availability ?? 'available';
+                const bg =
+                  av === 'available' ? '#D1FAE5' :
+                  av === 'booked' ? '#FEF3C7' : '#FEE2E2';
+                const fg =
+                  av === 'available' ? '#065F46' :
+                  av === 'booked' ? '#92400E' : '#991B1B';
+                const customerName = s?.customer_names?.[0];
+                return (
+                  <View key={h} style={[styles.calCell, { backgroundColor: bg }]}>
+                    {av === 'available' ? (
+                      <Text style={[styles.calCellText, { color: fg }]}>○</Text>
+                    ) : (
+                      <Text style={[styles.calCellText, { color: fg }]} numberOfLines={1}>
+                        {customerName ? customerName.slice(0, 4) : '済'}
+                      </Text>
+                    )}
+                  </View>
+                );
+              })}
+            </View>
+          );
+        })}
+      </View>
+
+      <Text style={styles.calFooter}>
+        各セル：○＝空き／会社名＝予約済（先頭4文字表示）
+      </Text>
+    </Card>
+  );
+}
+
+// ====================================================================
 // 部品
 // ====================================================================
 function Stat({ label, v, tone }: { label: string; v: number; tone: 'ink' | 'emerald' | 'amber' | 'red' }) {
@@ -540,4 +648,20 @@ const styles = StyleSheet.create({
   modalRowArrow: { fontSize: 20, color: Ink[300] },
   confirmBox: { marginTop: 14, padding: 14, backgroundColor: Ink[50], borderRadius: Radius.md },
   confirmText: { fontSize: 13, color: Ink[900], fontWeight: '700' },
+
+  // Calendar
+  legendRow: { flexDirection: 'row', gap: 14, justifyContent: 'flex-end' },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  legendDot: { width: 12, height: 12, borderRadius: 3 },
+  legendText: { fontSize: 10, color: Ink[600] },
+
+  calHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4, gap: 2 },
+  calDateHeader: { width: 60, fontSize: 10, color: Ink[500], fontWeight: '700' },
+  calHourHeader: { flex: 1, fontSize: 10, color: Ink[500], fontWeight: '700', textAlign: 'center' },
+  calRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: 2 },
+  calRowToday: { backgroundColor: 'rgba(201,168,118,0.07)', borderRadius: 4 },
+  calDate: { width: 60, fontSize: 10, color: Ink[700], fontWeight: '600', paddingVertical: 4 },
+  calCell: { flex: 1, paddingVertical: 6, paddingHorizontal: 2, borderRadius: 3, alignItems: 'center', justifyContent: 'center', minHeight: 24 },
+  calCellText: { fontSize: 9, fontWeight: '700' },
+  calFooter: { fontSize: 10, color: Ink[500], marginTop: 8, textAlign: 'center' },
 });
