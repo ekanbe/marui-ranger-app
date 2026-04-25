@@ -102,6 +102,18 @@ function AdminDashboard({ displayName, avatarUrl }: { displayName: string; avata
         <Text style={styles.ecSyncArrow}>›</Text>
       </Pressable>
 
+      {/* ショールーム予約管理（管理者エントリ） */}
+      <Pressable onPress={() => router.push('/admin-showroom')} style={styles.ecSyncRow}>
+        <View style={styles.ecSyncIconBox}>
+          <Text style={styles.ecSyncIcon}>🏬</Text>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.ecSyncTitle}>ショールーム予約管理</Text>
+          <Text style={styles.ecSyncSub}>LINE予約連携 ／ 未マッチの紐付け ／ 来場ステータス管理</Text>
+        </View>
+        <Text style={styles.ecSyncArrow}>›</Text>
+      </Pressable>
+
       {/* アラートカード 2枚 */}
       <View style={styles.row2}>
         <KpiCard

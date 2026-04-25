@@ -82,6 +82,7 @@ export default function RootLayout() {
             <Stack.Screen name="ranger-edit/[id]" />
             <Stack.Screen name="approvals" />
             <Stack.Screen name="admin-ec-sync" />
+            <Stack.Screen name="admin-showroom" />
             <Stack.Screen name="notifications" />
             <Stack.Screen name="ranking" />
             <Stack.Screen name="showroom" />
