@@ -21,11 +21,15 @@ import { Accent, Brand, Ink, Radius } from '@/constants/theme';
 import { useAuth } from '@/hooks/use-auth';
 import { useCustomers } from '@/hooks/use-customers';
 import {
+  cancelInvitation,
+  recordShowroomVisit,
   resolveUnmatchedBooking,
   updateInvitationStatus,
   useLineShowroom,
+  type ShowroomInvitationRow,
   type UnmatchedBookingRow,
 } from '@/hooks/use-line-showroom';
+import { useProducts } from '@/hooks/use-products';
 import { useProfile } from '@/hooks/use-profile';
 import { SHOWROOM_HOURS, useShowroomSlots } from '@/hooks/use-showroom-slots';
 import { jpy } from '@/lib/format';
@@ -85,6 +89,7 @@ export default function AdminShowroomScreen() {
   const { slots, loading: slotsLoading } = useShowroomSlots(undefined, 14);
   const [picker, setPicker] = useState<UnmatchedBookingRow | null>(null);
   const [showLogs, setShowLogs] = useState(false);
+  const [visitTarget, setVisitTarget] = useState<ShowroomInvitationRow | null>(null);
 
   if (!isAdmin) {
     return (
@@ -284,16 +289,24 @@ export default function AdminShowroomScreen() {
                             ) : null}
                             {inv.status === 'confirmed' ? (
                               <Pressable
+                                onPress={() => setVisitTarget(inv)}
+                                style={[styles.smallBtn, { backgroundColor: Brand.navy }]}
+                              >
+                                <Text style={[styles.smallBtnText, { color: '#fff' }]}>来場記録</Text>
+                              </Pressable>
+                            ) : null}
+                            {inv.status !== 'cancelled' && inv.status !== 'visited' ? (
+                              <Pressable
                                 onPress={() => {
-                                  confirmDialog(`「${inv.customer_name}」を来場済にしますか？`, async () => {
-                                    const r = await updateInvitationStatus(inv.id, 'visited');
-                                    if (r.ok) { notify('✅ 来場済にしました'); reload(); }
+                                  confirmDialog(`「${inv.customer_name}」の招待をキャンセルしますか？`, async () => {
+                                    const r = await cancelInvitation(inv.id);
+                                    if (r.ok) { notify('✅ キャンセルしました'); reload(); }
                                     else notify(`エラー: ${r.error}`);
                                   });
                                 }}
-                                style={[styles.smallBtn, { backgroundColor: Brand.navy }]}
+                                style={[styles.smallBtn, { backgroundColor: 'transparent', borderWidth: 1, borderColor: Accent.red }]}
                               >
-                                <Text style={[styles.smallBtnText, { color: '#fff' }]}>来場済</Text>
+                                <Text style={[styles.smallBtnText, { color: Accent.red }]}>×</Text>
                               </Pressable>
                             ) : null}
                           </View>
@@ -349,6 +362,18 @@ export default function AdminShowroomScreen() {
           onClose={() => setPicker(null)}
           onResolved={() => {
             setPicker(null);
+            reload();
+          }}
+        />
+      ) : null}
+
+      {/* ── 来場記録モーダル（試食商品 + メモ） ── */}
+      {visitTarget ? (
+        <VisitRecordModal
+          invitation={visitTarget}
+          onClose={() => setVisitTarget(null)}
+          onRecorded={() => {
+            setVisitTarget(null);
             reload();
           }}
         />
@@ -473,6 +498,105 @@ function UnmatchedPickerModal({
 
           <View style={{ marginTop: 12 }}>
             <Button label="キャンセル" variant="secondary" size="md" fullWidth onPress={onClose} disabled={busy} />
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+// ====================================================================
+// 来場記録モーダル（試食商品＋メモ → fn_record_showroom_visit）
+// ====================================================================
+function VisitRecordModal({
+  invitation,
+  onClose,
+  onRecorded,
+}: {
+  invitation: ShowroomInvitationRow;
+  onClose: () => void;
+  onRecorded: () => void;
+}) {
+  const { products, loading: prodLoading } = useProducts();
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [memo, setMemo] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  function toggle(id: string) {
+    setSelected((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  }
+
+  async function submit() {
+    setBusy(true); setErr(null);
+    const r = await recordShowroomVisit(invitation.id, Array.from(selected), memo.trim() || undefined);
+    setBusy(false);
+    if (!r.ok) { setErr(r.error ?? '記録失敗'); return; }
+    notify('✅ 来場記録を作成しました');
+    onRecorded();
+  }
+
+  return (
+    <Modal transparent animationType="fade" onRequestClose={onClose}>
+      <View style={styles.modalBackdrop}>
+        <View style={styles.modalCard}>
+          <Text style={styles.modalTitle}>🏬 来場記録</Text>
+          <Text style={styles.modalSub}>{invitation.customer_name}</Text>
+
+          <Text style={styles.section}>試食した商品（複数選択可）</Text>
+          <View style={styles.productGrid}>
+            {prodLoading ? (
+              <Text style={styles.emptyHint}>読み込み中...</Text>
+            ) : products.length === 0 ? (
+              <Text style={styles.emptyHint}>商品がありません</Text>
+            ) : (
+              products.slice(0, 30).map((p) => (
+                <Pressable
+                  key={p.id}
+                  onPress={() => toggle(p.id)}
+                  style={[
+                    styles.productChip,
+                    selected.has(p.id) && { backgroundColor: Brand.gold, borderColor: Brand.gold },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.productChipText,
+                      selected.has(p.id) && { color: '#fff', fontWeight: '900' },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {p.name}
+                  </Text>
+                </Pressable>
+              ))
+            )}
+          </View>
+
+          <Text style={styles.section}>メモ（任意）</Text>
+          <TextInput
+            value={memo}
+            onChangeText={setMemo}
+            placeholder="お客様の反応・気になった点・その後の提案など"
+            placeholderTextColor={Ink[400]}
+            multiline
+            style={[styles.searchInput, { minHeight: 70 }]}
+          />
+
+          {err ? <Text style={styles.modalError}>{err}</Text> : null}
+
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 14 }}>
+            <View style={{ flex: 1 }}>
+              <Button label="キャンセル" variant="secondary" size="md" fullWidth onPress={onClose} disabled={busy} />
+            </View>
+            <View style={{ flex: 2 }}>
+              <Button label="来場済として記録" variant="primary" size="md" fullWidth loading={busy} onPress={submit} />
+            </View>
           </View>
         </View>
       </View>
@@ -648,6 +772,12 @@ const styles = StyleSheet.create({
   modalRowArrow: { fontSize: 20, color: Ink[300] },
   confirmBox: { marginTop: 14, padding: 14, backgroundColor: Ink[50], borderRadius: Radius.md },
   confirmText: { fontSize: 13, color: Ink[900], fontWeight: '700' },
+
+  // VisitRecord modal
+  section: { fontSize: 11, color: Ink[500], fontWeight: '700', letterSpacing: 1, marginTop: 14, marginBottom: 6 },
+  productGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  productChip: { paddingVertical: 6, paddingHorizontal: 10, borderRadius: 999, backgroundColor: Ink[50], borderWidth: 1, borderColor: Ink[200] },
+  productChipText: { fontSize: 12, color: Ink[800], fontWeight: '600' },
 
   // Calendar
   legendRow: { flexDirection: 'row', gap: 14, justifyContent: 'flex-end' },

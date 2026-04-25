@@ -197,3 +197,42 @@ export async function updateInvitationStatus(
     .eq('id', invitationId);
   return { ok: !error, error: error?.message };
 }
+
+/**
+ * 招待キャンセル
+ */
+export async function cancelInvitation(invitationId: string, reason?: string) {
+  const { error } = await supabase.rpc('fn_cancel_showroom_invitation', {
+    p_invitation_id: invitationId,
+    p_reason: reason ?? null,
+  });
+  return { ok: !error, error: error?.message };
+}
+
+/**
+ * 招待日時変更
+ */
+export async function rescheduleInvitation(invitationId: string, newScheduledAt: string) {
+  const { error } = await supabase.rpc('fn_reschedule_showroom_invitation', {
+    p_invitation_id: invitationId,
+    p_new_scheduled_at: newScheduledAt,
+  });
+  return { ok: !error, error: error?.message };
+}
+
+/**
+ * 来場済 + 試食記録（特許要件④）
+ */
+export async function recordShowroomVisit(
+  invitationId: string,
+  tastedProductIds?: string[],
+  memo?: string,
+) {
+  const { data, error } = await supabase.rpc('fn_record_showroom_visit', {
+    p_invitation_id: invitationId,
+    p_tasted_products: tastedProductIds && tastedProductIds.length > 0 ? tastedProductIds : null,
+    p_memo: memo ?? null,
+  });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, visitId: data as string };
+}

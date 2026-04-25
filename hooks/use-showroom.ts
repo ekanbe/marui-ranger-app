@@ -10,6 +10,7 @@ export type ShowroomItem = {
   scheduled_at: string | null;
   status: ShowroomStatus;
   customer_name: string;
+  customer_image_url: string | null;
   memo: string | null;
   tasted_products: string[];
 };
@@ -18,7 +19,7 @@ type NestedInvitation = {
   id: string;
   scheduled_at: string | null;
   status: ShowroomStatus;
-  customers: { name: string | null; branch_name: string | null } | null;
+  customers: { name: string | null; branch_name: string | null; image_url: string | null } | null;
   showroom_visits: {
     memo: string | null;
     tasted_products: string[] | null;
@@ -28,6 +29,7 @@ type NestedInvitation = {
 export function useShowroom(session: Session | null) {
   const [items, setItems] = useState<ShowroomItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     if (!session) {
@@ -43,7 +45,7 @@ export function useShowroom(session: Session | null) {
           .from('showroom_invitations')
           .select(
             `id, scheduled_at, status,
-             customers ( name, branch_name ),
+             customers ( name, branch_name, image_url ),
              showroom_visits ( memo, tasted_products )`
           )
           .eq('ranger_id', session.user.id)
@@ -69,6 +71,7 @@ export function useShowroom(session: Session | null) {
           scheduled_at: inv.scheduled_at,
           status: inv.status,
           customer_name: [cust?.name, cust?.branch_name].filter(Boolean).join(' ') || '-',
+          customer_image_url: cust?.image_url ?? null,
           memo: visit?.memo ?? null,
           tasted_products: tastedNames,
         };
@@ -81,7 +84,8 @@ export function useShowroom(session: Session | null) {
     return () => {
       mounted = false;
     };
-  }, [session]);
+  }, [session, reloadKey]);
 
-  return { items, loading };
+  const reload = () => setReloadKey((k) => k + 1);
+  return { items, loading, reload };
 }
