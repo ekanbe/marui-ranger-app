@@ -30,7 +30,7 @@
   "submit": {
     "production": {
       "ios": {
-        "appleId": "",
+        "appleId": "e.kanbe@marui-bussan.com",
         "ascAppId": "",
         "appleTeamId": ""
       }
