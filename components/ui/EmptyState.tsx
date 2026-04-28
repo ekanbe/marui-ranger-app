@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import { StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { Ink, Radius } from '@/constants/theme';
 import { Button } from './Button';
@@ -14,6 +15,12 @@ type Props = {
 export function EmptyState({ icon = '🔎', title, message, actionLabel, onAction, style }: Props) {
   return (
     <View style={[styles.box, style]}>
+      {/* 薄いブランドウォーターマーク（右下） */}
+      <Image
+        source={require('@/assets/images/icon.png')}
+        style={styles.watermark}
+        contentFit="cover"
+      />
       <Text style={styles.icon}>{icon}</Text>
       <Text style={styles.title}>{title}</Text>
       {message ? <Text style={styles.msg}>{message}</Text> : null}
@@ -37,6 +44,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Ink[100],
     borderStyle: 'dashed',
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  watermark: {
+    position: 'absolute',
+    right: -20,
+    bottom: -20,
+    width: 120,
+    height: 120,
+    borderRadius: 20,
+    opacity: 0.06,
   },
   icon: { fontSize: 40, marginBottom: 12 },
   title: { fontSize: 15, fontWeight: '700', color: Ink[900], textAlign: 'center' },

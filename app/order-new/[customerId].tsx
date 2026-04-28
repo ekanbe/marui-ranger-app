@@ -57,7 +57,7 @@ export default function NewOrderScreen() {
         customer_id: customerId,
         ranger_id: session.user.id,
         ordered_at: now.toISOString(),
-        status: 'confirmed',
+        status: 'pending',
         total_amount_jpy: subtotal,
       })
       .select('id')
@@ -83,7 +83,7 @@ export default function NewOrderScreen() {
       return;
     }
 
-    const message = `🎉 受注登録完了！\n\n報酬 ${jpy(commission)} が未確定として記録されました。`;
+    const message = `📝 受注を登録しました\n\n管理者の承認後、報酬 ${jpy(commission)} が確定します。`;
     if (Platform.OS === 'web') {
       if (typeof window !== 'undefined') window.alert(message);
     } else {
@@ -108,7 +108,13 @@ export default function NewOrderScreen() {
       <Text style={styles.title}>新規受注</Text>
       {detail ? (
         <View style={styles.customerBanner}>
-          <Text style={styles.customerIcon}>🏪</Text>
+          <View style={styles.customerBannerThumbWrap}>
+            {detail.image_url ? (
+              <Image source={{ uri: detail.image_url }} style={styles.customerBannerThumb} contentFit="cover" />
+            ) : (
+              <View style={[styles.customerBannerThumb, styles.customerBannerThumbPlaceholder]}><Text style={{ fontSize: 22 }}>🏪</Text></View>
+            )}
+          </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.customerName}>
               {detail.name}
@@ -143,13 +149,13 @@ export default function NewOrderScreen() {
                 )}
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.productName, selected && { color: Brand.navy }]} numberOfLines={2}>
+                <Text style={[styles.productName, selected && { color: Ink[900] }]} numberOfLines={2}>
                   {p.name}
                 </Text>
                 <View style={{ flexDirection: 'row', gap: 6, marginTop: 4 }}>
                   {p.category ? <Badge label={p.category} tone="neutral" /> : null}
                 </View>
-                <Text style={[styles.productPrice, selected && { color: Brand.navy }]}>
+                <Text style={[styles.productPrice, selected && { color: Ink[900] }]}>
                   {jpy(p.unit_price_jpy)}
                 </Text>
               </View>
@@ -163,9 +169,9 @@ export default function NewOrderScreen() {
       <View style={styles.qtyRow}>
         <Pressable
           onPress={() => setQuantity(String(Math.max(0, quantityNum - 1)))}
-          style={styles.qtyBtn}
+          style={({ pressed }) => [styles.qtyBtn, pressed && styles.qtyBtnPressed]}
         >
-          <Text style={styles.qtyBtnText}>−</Text>
+          <Text style={styles.qtyBtnText}>-</Text>
         </Pressable>
         <TextInput
           value={quantity}
@@ -177,9 +183,9 @@ export default function NewOrderScreen() {
         />
         <Pressable
           onPress={() => setQuantity(String(quantityNum + 1))}
-          style={styles.qtyBtn}
+          style={({ pressed }) => [styles.qtyBtn, pressed && styles.qtyBtnPressed]}
         >
-          <Text style={styles.qtyBtnText}>＋</Text>
+          <Text style={styles.qtyBtnText}>+</Text>
         </Pressable>
       </View>
 
@@ -220,14 +226,22 @@ const styles = StyleSheet.create({
   customerBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
     backgroundColor: 'rgba(30,58,95,0.04)',
     borderRadius: Radius.md,
-    padding: 12,
+    padding: 10,
     marginTop: 8,
     marginBottom: 16,
   },
-  customerIcon: { fontSize: 24 },
+  customerBannerThumbWrap: {
+    width: 52, height: 52, borderRadius: 10, overflow: 'hidden',
+    backgroundColor: Ink[100],
+  },
+  customerBannerThumb: { width: 52, height: 52 },
+  customerBannerThumbPlaceholder: {
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(30,58,95,0.04)',
+  },
   customerName: { fontSize: 15, fontWeight: '800', color: Ink[900] },
   customerMeta: { fontSize: 11, color: Ink[500], marginTop: 2 },
 
@@ -254,15 +268,19 @@ const styles = StyleSheet.create({
   productPrice: { fontSize: 15, fontWeight: '800', color: Ink[700], marginTop: 6 },
   checkMark: { fontSize: 22, color: Brand.navy, fontWeight: '900' },
 
-  qtyRow: { flexDirection: 'row', gap: 10, marginBottom: 20, alignItems: 'center' },
+  qtyRow: { flexDirection: 'row', marginBottom: 20, alignItems: 'center' },
   qtyBtn: {
-    width: 48, height: 48, borderRadius: 24,
-    backgroundColor: '#fff', borderWidth: 1, borderColor: Ink[200],
+    width: 52, height: 52, borderRadius: 26,
+    backgroundColor: Brand.navy,
     alignItems: 'center', justifyContent: 'center',
+    flexShrink: 0,
   },
-  qtyBtnText: { fontSize: 22, fontWeight: '700', color: Ink[900] },
+  qtyBtnPressed: { opacity: 0.75 },
+  qtyBtnText: { fontSize: 28, fontWeight: '700', color: '#fff', lineHeight: 30 },
   qtyInput: {
     flex: 1,
+    minWidth: 0,
+    marginHorizontal: 12,
     backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: Ink[200],

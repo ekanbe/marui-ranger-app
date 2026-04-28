@@ -9,7 +9,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ListRow } from '@/components/ui/ListRow';
 import { SectionTitle } from '@/components/ui/SectionTitle';
 import { ShimmerCard } from '@/components/ui/Shimmer';
-import { Appetite, Brand, Ink, Radius } from '@/constants/theme';
+import { Brand, Ink, Radius } from '@/constants/theme';
 import { useProductDetail } from '@/hooks/use-product-detail';
 import { jpy } from '@/lib/format';
 
@@ -78,7 +78,7 @@ export default function ProductDetailScreen() {
         <>
           <SectionTitle title="マッチする悲鳴" />
           <View style={styles.tagRow}>
-            {detail.solves_pain.map((t) => <Badge key={t} label={t} tone="ember" size="md" />)}
+            {detail.solves_pain.map((t) => <Badge key={t} label={t} tone="red" size="md" />)}
           </View>
         </>
       )}
@@ -137,17 +137,17 @@ const styles = StyleSheet.create({
 
   maker: { fontSize: 11, color: Ink[500], fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase' },
   name: { fontSize: 20, fontWeight: '800', color: Ink[900], textAlign: 'center', marginTop: 4, letterSpacing: -0.3 },
-  price: { fontSize: 26, fontWeight: '900', color: Brand.navy, marginTop: 12, letterSpacing: -0.5 },
+  price: { fontSize: 26, fontWeight: '900', color: Ink[900], marginTop: 12, letterSpacing: -0.5 },
 
   painBox: {
-    backgroundColor: 'rgba(234,88,12,0.06)',
+    backgroundColor: 'rgba(239,68,68,0.05)',
     borderLeftWidth: 4,
-    borderLeftColor: Appetite.ember,
+    borderLeftColor: '#DC2626',
     borderRadius: Radius.md,
     padding: 14,
     marginBottom: 10,
   },
-  painLabel: { fontSize: 11, color: Appetite.ember, fontWeight: '800', letterSpacing: 0.5 },
+  painLabel: { fontSize: 11, color: '#DC2626', fontWeight: '800', letterSpacing: 0.5 },
   painText: { fontSize: 14, color: Ink[900], marginTop: 6, fontWeight: '700', lineHeight: 20 },
 
   pitchBox: {
@@ -158,7 +158,7 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: 18,
   },
-  pitchLabel: { fontSize: 11, color: Brand.navy, fontWeight: '800', letterSpacing: 0.5 },
+  pitchLabel: { fontSize: 11, color: Ink[900], fontWeight: '800', letterSpacing: 0.5 },
   pitchText: { fontSize: 13, color: Ink[700], marginTop: 6, lineHeight: 20 },
 
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 20 },

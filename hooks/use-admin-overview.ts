@@ -20,12 +20,15 @@ export type AdminOverview = {
   totalCommissionPending: number;
   totalCommissionPaid: number;
 
+  pendingApprovalCount: number;
+
   rangers: Array<{
     ranger_id: string;
     display_name: string;
     avatar_url: string | null;
     current_rank: string;
     sales_jpy: number;
+    ranger_number: number;
   }>;
 };
 
@@ -37,10 +40,10 @@ export function useAdminOverview() {
     let mounted = true;
 
     (async () => {
-      const [rankingRes, commissionsRes, rangersRes, customersRes, allOrdersRes] = await Promise.all([
+      const [rankingRes, commissionsRes, rangersRes, customersRes, allOrdersRes, pendingRes] = await Promise.all([
         supabase
           .from('v_ranking_this_month')
-          .select('ranger_id, display_name, avatar_url, current_rank, sales_jpy, order_count')
+          .select('ranger_id, display_name, avatar_url, current_rank, sales_jpy, order_count, ranger_number')
           .order('sales_jpy', { ascending: false }),
         supabase.from('commissions').select('ranger_amount_jpy, status'),
         supabase.from('rangers').select('monthly_goal_jpy, joined_at'),
@@ -50,6 +53,10 @@ export function useAdminOverview() {
           .select('customer_id, ordered_at')
           .neq('status', 'cancelled')
           .order('ordered_at', { ascending: true }),
+        supabase
+          .from('orders')
+          .select('id', { count: 'exact', head: true })
+          .eq('status', 'pending'),
       ]);
 
       if (!mounted) return;
@@ -61,6 +68,7 @@ export function useAdminOverview() {
         current_rank: string;
         sales_jpy: number | string;
         order_count: number | string;
+        ranger_number: number | string;
       }>;
 
       const thisMonthSalesJpy = rankingRows.reduce((s, r) => s + Number(r.sales_jpy ?? 0), 0);
@@ -118,6 +126,8 @@ export function useAdminOverview() {
         .filter((c) => c.status === 'paid')
         .reduce((s, c) => s + Number(c.ranger_amount_jpy ?? 0), 0);
 
+      const pendingApprovalCount = Number(pendingRes.count ?? 0);
+
       setOverview({
         thisMonthSalesJpy,
         thisMonthOrderCount,
@@ -132,12 +142,14 @@ export function useAdminOverview() {
         totalRangers: rankingRows.length,
         totalCommissionPending,
         totalCommissionPaid,
+        pendingApprovalCount,
         rangers: rankingRows.map((r) => ({
           ranger_id: r.ranger_id,
           display_name: r.display_name,
           avatar_url: r.avatar_url,
           current_rank: r.current_rank,
           sales_jpy: Number(r.sales_jpy ?? 0),
+          ranger_number: Number(r.ranger_number ?? 0),
         })),
       });
       setLoading(false);

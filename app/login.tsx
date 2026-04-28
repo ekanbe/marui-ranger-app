@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import { useState } from 'react';
 import {
   ActivityIndicator,
@@ -37,25 +38,24 @@ export default function LoginScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.flex}
       >
-        {/* 背景装飾 */}
-        <View style={styles.bgGlow1} />
-        <View style={styles.bgGlow2} />
-
         <View style={styles.inner}>
           {/* ブランドロゴ */}
           <View style={{ marginTop: 40 }}>
-            <View style={styles.logoBox}>
-              <Text style={styles.logoIcon}>⚔️</Text>
+            <View style={styles.logoWrap}>
+              <Image
+                source={require('@/assets/images/icon.png')}
+                style={styles.logoImage}
+                contentFit="cover"
+              />
             </View>
             <Text style={styles.title}>RANGER</Text>
             <Text style={styles.subtitle}>MARUI BUSSAN</Text>
-            <Text style={styles.tagline}>外勤営業のための、戦略プラットフォーム</Text>
           </View>
 
           {/* フォーム */}
           <View style={styles.form}>
             <View style={styles.field}>
-              <Text style={styles.label}>📧 メールアドレス</Text>
+              <Text style={styles.label}>メールアドレス</Text>
               <TextInput
                 value={email}
                 onChangeText={setEmail}
@@ -70,7 +70,7 @@ export default function LoginScreen() {
 
             <View style={styles.field}>
               <View style={styles.labelRow}>
-                <Text style={styles.label}>🔒 パスワード</Text>
+                <Text style={styles.label}>パスワード</Text>
                 <Pressable onPress={() => setShowPassword((v) => !v)} hitSlop={8}>
                   <Text style={styles.toggleText}>{showPassword ? '隠す' : '表示'}</Text>
                 </Pressable>
@@ -126,41 +126,32 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Brand.navyDeep },
   flex: { flex: 1 },
 
-  bgGlow1: {
-    position: 'absolute',
-    top: -120,
-    right: -100,
-    width: 340,
-    height: 340,
-    borderRadius: 170,
-    backgroundColor: Brand.gold,
-    opacity: 0.1,
-  },
-  bgGlow2: {
-    position: 'absolute',
-    bottom: -140,
-    left: -80,
-    width: 300,
-    height: 300,
-    borderRadius: 150,
-    backgroundColor: Brand.navyLight,
-    opacity: 0.25,
-  },
-
   inner: { flex: 1, padding: 32, justifyContent: 'space-between' },
 
-  logoBox: {
-    width: 64, height: 64, borderRadius: 18,
-    backgroundColor: 'rgba(201,168,118,0.18)',
-    alignItems: 'center', justifyContent: 'center',
-    marginBottom: 16,
+  logoWrap: {
+    width: 96,
+    height: 96,
+    borderRadius: 24,
+    padding: 6,
+    backgroundColor: 'rgba(255,255,255,0.06)',
     borderWidth: 1,
     borderColor: 'rgba(201,168,118,0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 18,
+    shadowColor: '#C9A876',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.4,
+    shadowRadius: 24,
+    elevation: 10,
   },
-  logoIcon: { fontSize: 32 },
+  logoImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 18,
+  },
   title: { color: '#fff', fontSize: 40, fontWeight: '900', letterSpacing: 8 },
   subtitle: { color: 'rgba(201,168,118,0.8)', fontSize: 11, letterSpacing: 6, marginTop: 4, fontWeight: '700' },
-  tagline: { color: 'rgba(255,255,255,0.5)', fontSize: 12, marginTop: 16, lineHeight: 18 },
 
   form: { gap: 18 },
   field: { gap: 8 },
@@ -194,16 +185,9 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     alignItems: 'center',
     marginTop: 4,
-    shadowColor: Brand.gold,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
-    elevation: 6,
   },
   buttonDisabled: {
     backgroundColor: 'rgba(255,255,255,0.12)',
-    shadowOpacity: 0,
-    elevation: 0,
   },
   buttonText: { color: Brand.navyDark, fontWeight: '900', fontSize: 15, letterSpacing: 2 },
   buttonTextDisabled: { color: 'rgba(255,255,255,0.5)' },

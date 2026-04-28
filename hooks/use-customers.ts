@@ -9,6 +9,7 @@ export type CustomerRow = {
   address: string | null;
   business_type: string | null;
   status: string;
+  image_url: string | null;
   last_ordered_at: string | null;
 };
 
@@ -35,7 +36,7 @@ export function useCustomers() {
     let mounted = true;
     supabase
       .from('customers')
-      .select('id, name, branch_name, address, business_type, status, last_ordered_at')
+      .select('id, name, branch_name, address, business_type, status, image_url, last_ordered_at')
       .order('last_ordered_at', { ascending: false, nullsFirst: false })
       .then(({ data, error }) => {
         if (!mounted) return;

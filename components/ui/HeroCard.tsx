@@ -1,6 +1,6 @@
 import { PropsWithChildren } from 'react';
 import { StyleSheet, Text, View, ViewStyle } from 'react-native';
-import { Accent, Appetite, Brand, Radius, Shadow } from '@/constants/theme';
+import { Accent, Brand, Radius, Shadow } from '@/constants/theme';
 
 type Tone = 'navy' | 'emerald' | 'ember' | 'gold';
 
@@ -15,7 +15,7 @@ type Props = PropsWithChildren<{
 const TONE: Record<Tone, { bg: string; accent: string; labelColor: string }> = {
   navy:    { bg: Brand.navy,          accent: Accent.emeraldLight, labelColor: 'rgba(255,255,255,0.7)' },
   emerald: { bg: Accent.emeraldDark,  accent: '#A7F3D0',           labelColor: 'rgba(255,255,255,0.75)' },
-  ember:   { bg: Appetite.ember,      accent: '#FFEDD5',           labelColor: 'rgba(255,255,255,0.8)' },
+  ember:   { bg: Brand.navy,          accent: Accent.emeraldLight, labelColor: 'rgba(255,255,255,0.7)' },
   gold:    { bg: Brand.goldDark,      accent: '#FDE68A',           labelColor: 'rgba(255,255,255,0.8)' },
 };
 

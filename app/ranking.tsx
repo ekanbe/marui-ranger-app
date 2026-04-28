@@ -72,7 +72,8 @@ export default function RankingScreen() {
                 <Text style={[styles.rankMedal, r.rank <= 3 && { fontSize: 22 }]}>{medal}</Text>
                 <Avatar name={r.display_name} imageUrl={r.avatar_url} size="sm" />
                 <View style={{ flex: 1, marginLeft: 10 }}>
-                  <Text style={[styles.rankName, r.isMe && { fontWeight: '900', color: Brand.navy }]}>
+                  <Text style={styles.rankerNumber}>レンジャー{r.ranger_number}号</Text>
+                  <Text style={[styles.rankName, r.isMe && { fontWeight: '900', color: Ink[900] }]}>
                     {r.display_name}{r.isMe ? ' (あなた)' : ''}
                   </Text>
                   <View style={{ marginTop: 4 }}>
@@ -130,6 +131,7 @@ const styles = StyleSheet.create({
   },
   rankItemMe: { backgroundColor: 'rgba(30,58,95,0.04)' },
   rankMedal: { width: 38, fontSize: 15, fontWeight: '800', color: Ink[700], textAlign: 'center' },
+  rankerNumber: { fontSize: 9, color: Ink[500], fontWeight: '800', letterSpacing: 1, marginBottom: 2 },
   rankName: { fontSize: 13, fontWeight: '700', color: Ink[900] },
   rankScore: { fontSize: 13, fontWeight: '800', color: Ink[900] },
 });

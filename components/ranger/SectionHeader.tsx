@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { Brand, Ink } from '@/constants/theme';
+import { Ink } from '@/constants/theme';
 
 export function SectionHeader({ title, action, onAction }: { title: string; action?: string; onAction?: () => void }) {
   return (
@@ -13,5 +13,5 @@ export function SectionHeader({ title, action, onAction }: { title: string; acti
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   title: { fontSize: 14, fontWeight: '700', color: Ink[900] },
-  action: { fontSize: 12, color: Brand.navy, fontWeight: '600' },
+  action: { fontSize: 12, color: Ink[900], fontWeight: '600' },
 });

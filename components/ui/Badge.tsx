@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View, ViewStyle } from 'react-native';
-import { Accent, Appetite, Brand, Ink, RankColor } from '@/constants/theme';
+import { Accent, Brand, Ink, RankColor } from '@/constants/theme';
 
 type Tone =
   | 'neutral'
@@ -32,8 +32,9 @@ const TONE: Record<Tone, { bg: string; fg: string }> = {
   red:      { bg: 'rgba(239,68,68,0.12)',    fg: '#B91C1C' },
   blue:     { bg: 'rgba(59,130,246,0.12)',   fg: '#1D4ED8' },
   violet:   { bg: 'rgba(139,92,246,0.12)',   fg: '#6D28D9' },
-  ember:    { bg: 'rgba(234,88,12,0.12)',    fg: Appetite.ember },
-  coral:    { bg: 'rgba(251,113,133,0.14)',  fg: '#BE123C' },
+  // ember/coral は非推奨。下記は互換のため残すが新規使用禁止
+  ember:    { bg: 'rgba(30,58,95,0.1)',      fg: Brand.navy },
+  coral:    { bg: 'rgba(239,68,68,0.12)',    fg: '#B91C1C' },
   platinum: { bg: RankColor.platinumBg,      fg: RankColor.platinum },
   gold:     { bg: RankColor.goldBg,          fg: RankColor.gold },
   silver:   { bg: RankColor.silverBg,        fg: RankColor.silver },

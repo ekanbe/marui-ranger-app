@@ -5,7 +5,7 @@ import { Alert, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'r
 import { Screen } from '@/components/ranger/Screen';
 import { Button } from '@/components/ui/Button';
 import { SectionTitle } from '@/components/ui/SectionTitle';
-import { Appetite, Brand, Ink, Radius } from '@/constants/theme';
+import { Accent, Brand, Ink, Radius } from '@/constants/theme';
 import { useAuth } from '@/hooks/use-auth';
 import { supabase } from '@/lib/supabase';
 
@@ -220,11 +220,11 @@ const styles = StyleSheet.create({
     borderColor: Ink[200],
   },
   painChipActive: {
-    backgroundColor: 'rgba(234,88,12,0.08)',
-    borderColor: Appetite.ember,
+    backgroundColor: 'rgba(239,68,68,0.06)',
+    borderColor: Accent.red,
   },
   painChipText: { fontSize: 12, color: Ink[700], fontWeight: '700' },
-  painChipTextActive: { color: Appetite.ember, fontWeight: '800' },
+  painChipTextActive: { color: '#DC2626', fontWeight: '800' },
 
   error: {
     color: '#DC2626',

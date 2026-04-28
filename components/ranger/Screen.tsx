@@ -3,6 +3,9 @@ import { PropsWithChildren } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, Ink } from '@/constants/theme';
+import { useAuth } from '@/hooks/use-auth';
+import { useIsWide } from '@/hooks/use-is-wide';
+import { useProfile } from '@/hooks/use-profile';
 
 type Props = {
   scroll?: boolean;
@@ -20,6 +23,11 @@ export function Screen({
   back = false,
   style,
 }: PropsWithChildren<Props>) {
+  const { session } = useAuth();
+  const { profile } = useProfile(session);
+  const isWide = useIsWide();
+  const isAdminPc = profile?.role === 'admin' && isWide;
+
   const bg =
     background === 'white' ? '#FFFFFF' :
     background === 'default' ? Colors.light.background :
@@ -27,6 +35,7 @@ export function Screen({
 
   const bodyStyle = [
     padded ? styles.bodyPadded : styles.body,
+    isAdminPc && styles.bodyAdminPc,
     style,
   ];
 
@@ -53,13 +62,22 @@ export function Screen({
   ) : (
     <View style={[bodyStyle, { flex: 1 }]}>{content}</View>
   );
-  return <SafeAreaView edges={['top']} style={[styles.safe, { backgroundColor: bg }]}>{body}</SafeAreaView>;
+  return <SafeAreaView edges={isAdminPc ? [] : ['top']} style={[styles.safe, { backgroundColor: bg }]}>{body}</SafeAreaView>;
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
   body: { paddingBottom: 96 },
   bodyPadded: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 96 },
+  // admin PC: 中央寄せ + max-width + パディングゆったり
+  bodyAdminPc: {
+    paddingHorizontal: 40,
+    paddingTop: 32,
+    paddingBottom: 64,
+    maxWidth: 1200,
+    width: '100%',
+    alignSelf: 'center',
+  },
 
   backBtn: {
     flexDirection: 'row',

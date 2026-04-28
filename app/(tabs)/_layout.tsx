@@ -1,30 +1,34 @@
 import { Tabs } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, View } from 'react-native';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { Brand, Colors, Ink } from '@/constants/theme';
 import { useAuth } from '@/hooks/use-auth';
+import { useIsWide } from '@/hooks/use-is-wide';
 import { useProfile } from '@/hooks/use-profile';
 
 type IconName = 'home' | 'store' | 'box' | 'yen' | 'more' | 'people';
 
-const GLYPHS: Record<IconName, { on: string; off: string }> = {
-  home:   { on: '🏠', off: '🏠' },
-  store:  { on: '🏪', off: '🏪' },
-  box:    { on: '📦', off: '📦' },
-  yen:    { on: '💰', off: '💰' },
-  people: { on: '👥', off: '👥' },
-  more:   { on: '⋯',  off: '⋯' },
+const ICONS: Record<IconName, number> = {
+  home:   require('@/assets/icons/tab-home.png'),
+  store:  require('@/assets/icons/tab-customers.png'),
+  box:    require('@/assets/icons/tab-products.png'),
+  yen:    require('@/assets/icons/tab-margin.png'),
+  people: require('@/assets/icons/tab-rangers.png'),
+  more:   require('@/assets/icons/tab-more.png'),
 };
 
 function TabIcon({ name, focused }: { name: IconName; color: string; focused: boolean }) {
-  const g = GLYPHS[name];
   return (
     <View style={styles.iconBox}>
-      <Text style={[styles.iconText, focused && styles.iconTextFocused]}>
-        {focused ? g.on : g.off}
-      </Text>
-      {focused ? <View style={styles.dot} /> : null}
+      <Image
+        source={ICONS[name]}
+        style={[
+          styles.icon,
+          { tintColor: focused ? Brand.navy : Ink[400] },
+        ]}
+        resizeMode="contain"
+      />
     </View>
   );
 }
@@ -33,6 +37,9 @@ export default function TabLayout() {
   const { session } = useAuth();
   const { profile } = useProfile(session);
   const isAdmin = profile?.role === 'admin';
+  const isWide = useIsWide();
+  // admin + PC では AdminShell のサイドバーがナビを担うのでタブバー非表示
+  const hideTabBar = isAdmin && isWide;
 
   return (
     <Tabs
@@ -40,23 +47,26 @@ export default function TabLayout() {
         headerShown: false,
         tabBarButton: HapticTab,
         tabBarActiveTintColor: Brand.navy,
-        tabBarInactiveTintColor: Ink[500],
-        tabBarStyle: {
-          backgroundColor: Colors.light.surface,
-          borderTopColor: Ink[100],
-          borderTopWidth: 1,
-          height: 78,
-          paddingBottom: 14,
-          paddingTop: 10,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: -4 },
-          shadowOpacity: 0.04,
-          shadowRadius: 12,
-          elevation: 8,
-        },
+        tabBarInactiveTintColor: Ink[400],
+        tabBarStyle: hideTabBar
+          ? { display: 'none' }
+          : {
+              backgroundColor: Colors.light.surface,
+              borderTopColor: Ink[100],
+              borderTopWidth: 1,
+              height: 78,
+              paddingBottom: 14,
+              paddingTop: 10,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: -4 },
+              shadowOpacity: 0.04,
+              shadowRadius: 12,
+              elevation: 8,
+            },
         tabBarLabelStyle: { fontSize: 10, fontWeight: '700', letterSpacing: 0.3 },
       }}
     >
+      {/* 順序：ホーム | 顧客 | マージン(ranger)or レンジャー(admin) | 商品 | その他 */}
       <Tabs.Screen
         name="index"
         options={{
@@ -69,8 +79,12 @@ export default function TabLayout() {
         options={{ title: '顧客', tabBarIcon: (p) => <TabIcon name="store" {...p} /> }}
       />
       <Tabs.Screen
-        name="products"
-        options={{ title: '商品', tabBarIcon: (p) => <TabIcon name="box" {...p} /> }}
+        name="margin"
+        options={{
+          title: 'マージン',
+          tabBarIcon: (p) => <TabIcon name="yen" {...p} />,
+          href: isAdmin ? null : '/(tabs)/margin',
+        }}
       />
       <Tabs.Screen
         name="rangers"
@@ -81,12 +95,8 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="margin"
-        options={{
-          title: 'マージン',
-          tabBarIcon: (p) => <TabIcon name="yen" {...p} />,
-          href: isAdmin ? null : '/(tabs)/margin',
-        }}
+        name="products"
+        options={{ title: '商品', tabBarIcon: (p) => <TabIcon name="box" {...p} /> }}
       />
       <Tabs.Screen
         name="more"
@@ -97,15 +107,9 @@ export default function TabLayout() {
 }
 
 const styles = StyleSheet.create({
-  iconBox: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center', position: 'relative' },
-  iconText: { fontSize: 18, opacity: 0.5 },
-  iconTextFocused: { opacity: 1 },
-  dot: {
-    position: 'absolute',
-    bottom: -4,
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: Brand.navy,
+  iconBox: {
+    width: 32, height: 32,
+    alignItems: 'center', justifyContent: 'center',
   },
+  icon: { width: 24, height: 24 },
 });

@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, Text, View, ViewStyle } from 'react-native';
-import { Brand, Ink } from '@/constants/theme';
+import { Ink } from '@/constants/theme';
 
 type Props = {
   title: string;
@@ -29,5 +29,5 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'flex-end', marginBottom: 12, marginTop: 4 },
   title: { fontSize: 15, fontWeight: '800', color: Ink[900], letterSpacing: -0.2 },
   caption: { fontSize: 11, color: Ink[500], marginTop: 2 },
-  action: { fontSize: 12, color: Brand.navy, fontWeight: '700' },
+  action: { fontSize: 12, color: Ink[900], fontWeight: '700' },
 });

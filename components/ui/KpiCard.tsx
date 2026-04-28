@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View, ViewStyle } from 'react-native';
-import { Accent, Appetite, Brand, Ink, Radius, Shadow } from '@/constants/theme';
+import { Accent, Brand, Ink, Radius, Shadow } from '@/constants/theme';
 
 type Trend = 'up' | 'down' | 'flat';
 type Tone = 'navy' | 'emerald' | 'amber' | 'red' | 'ember' | 'violet' | 'ink';
@@ -21,15 +21,16 @@ const TONE_COLOR: Record<Tone, string> = {
   emerald: Accent.emerald,
   amber:   Accent.amber,
   red:     Accent.red,
-  ember:   Appetite.ember,
+  ember:   Brand.navy,
   violet:  Accent.violet,
   ink:     Ink[900],
 };
 
 export function KpiCard({ label, value, unit, trend, delta, tone = 'ink', sparkline, icon, style }: Props) {
   const color = TONE_COLOR[tone];
+  // 日本の会計記法では▲はマイナスを指すので、混乱回避のため ↑↓ に統一
   const trendColor = trend === 'up' ? Accent.emerald : trend === 'down' ? Accent.red : Ink[500];
-  const trendSymbol = trend === 'up' ? '▲' : trend === 'down' ? '▼' : '—';
+  const trendSymbol = trend === 'up' ? '↑' : trend === 'down' ? '↓' : '—';
 
   return (
     <View style={[styles.card, style as ViewStyle]}>

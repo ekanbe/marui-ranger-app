@@ -18,6 +18,7 @@ export type CustomerDetail = {
   address: string | null;
   business_type: string | null;
   customer_code: string;
+  image_url: string | null;
   last_ordered_at: string | null;
   painPoints: string[];
   monthSalesJpy: number;
@@ -63,7 +64,7 @@ export function useCustomerDetail(customerId: string | undefined) {
         supabase
           .from('customers')
           .select(
-            `id, name, branch_name, address, business_type, customer_code, status, last_ordered_at,
+            `id, name, branch_name, address, business_type, customer_code, status, image_url, last_ordered_at,
              customer_attributes ( attribute_key, attribute_value )`
           )
           .eq('id', customerId)
@@ -97,6 +98,7 @@ export function useCustomerDetail(customerId: string | undefined) {
             address: string | null;
             business_type: string | null;
             customer_code: string;
+            image_url: string | null;
             last_ordered_at: string | null;
             customer_attributes: { attribute_key: string; attribute_value: string }[] | null;
           }
@@ -133,6 +135,7 @@ export function useCustomerDetail(customerId: string | undefined) {
         address: cust?.address ?? null,
         business_type: cust?.business_type ?? null,
         customer_code: cust?.customer_code ?? '',
+        image_url: cust?.image_url ?? null,
         last_ordered_at: cust?.last_ordered_at ?? null,
         painPoints,
         monthSalesJpy: monthSales,

@@ -1,5 +1,5 @@
 import { StyleSheet, View, ViewStyle } from 'react-native';
-import { Accent, Appetite, Brand, Ink } from '@/constants/theme';
+import { Accent, Brand, Ink } from '@/constants/theme';
 
 type Tone = 'navy' | 'gold' | 'emerald' | 'ember' | 'amber';
 
@@ -15,7 +15,7 @@ const TONE_COLOR: Record<Tone, string> = {
   navy:    Brand.navy,
   gold:    Brand.gold,
   emerald: Accent.emerald,
-  ember:   Appetite.ember,
+  ember:   Brand.navy,
   amber:   Accent.amber,
 };
 

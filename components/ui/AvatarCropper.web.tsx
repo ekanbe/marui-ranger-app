@@ -5,7 +5,7 @@ import { useCallback, useState } from 'react';
 import Cropper from 'react-easy-crop';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Appetite, Brand, Ink, Radius } from '@/constants/theme';
+import { Brand, Ink, Radius } from '@/constants/theme';
 import { Button } from '@/components/ui/Button';
 import { type CropArea, cropToBlob } from '@/lib/cropImage';
 
@@ -133,4 +133,3 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row', gap: 8 },
 });
 
-void Appetite;

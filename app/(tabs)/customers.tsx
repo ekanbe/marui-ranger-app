@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -131,7 +132,16 @@ export default function CustomersScreen() {
                 style={[styles.card, alert && styles.cardAlert]}
               >
                 <View style={styles.cardTop}>
-                  <View style={{ flex: 1 }}>
+                  <View style={styles.thumbWrap}>
+                    {c.image_url ? (
+                      <Image source={{ uri: c.image_url }} style={styles.thumb} contentFit="cover" />
+                    ) : (
+                      <View style={[styles.thumb, styles.thumbPlaceholder]}>
+                        <Text style={{ fontSize: 26 }}>🏪</Text>
+                      </View>
+                    )}
+                  </View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
                     <Badge
                       label={STATUS_LABEL[c.derivedStatus]}
                       tone={STATUS_TONE[c.derivedStatus]}
@@ -204,7 +214,18 @@ const styles = StyleSheet.create({
   },
   cardAlert: { borderWidth: 2, borderColor: 'rgba(239,68,68,0.35)', backgroundColor: 'rgba(239,68,68,0.02)' },
   cardTop: { flexDirection: 'row', gap: 12, marginBottom: 10, alignItems: 'flex-start' },
-  custName: { fontSize: 16, fontWeight: '800', color: Ink[900], marginTop: 8 },
+
+  thumbWrap: {
+    width: 68, height: 68, borderRadius: Radius.md,
+    overflow: 'hidden', backgroundColor: Ink[100],
+  },
+  thumb: { width: 68, height: 68 },
+  thumbPlaceholder: {
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(30,58,95,0.04)',
+  },
+
+  custName: { fontSize: 15, fontWeight: '800', color: Ink[900], marginTop: 6 },
   custMeta: { fontSize: 11, color: Ink[500], marginTop: 4 },
   daysBox: { alignItems: 'flex-end' },
   daysValue: { fontSize: 20, fontWeight: '800', color: Ink[900] },
@@ -219,5 +240,5 @@ const styles = StyleSheet.create({
     borderTopColor: Ink[100],
   },
   lastOrdered: { fontSize: 11, color: Ink[500] },
-  nextAction: { fontSize: 11, color: Brand.navy, fontWeight: '700' },
+  nextAction: { fontSize: 11, color: Ink[900], fontWeight: '700' },
 });

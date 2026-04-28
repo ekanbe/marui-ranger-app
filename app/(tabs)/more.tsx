@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/Card';
 import { roleLabel } from '@/constants/labels';
 import { Accent, Ink, Radius } from '@/constants/theme';
 import { signOut, useAuth } from '@/hooks/use-auth';
+import { useMyRanger } from '@/hooks/use-my-ranger';
 import { useNotifications } from '@/hooks/use-notifications';
 import { useProfile } from '@/hooks/use-profile';
 import { rangerProfile } from '@/lib/mockData';
@@ -36,6 +37,11 @@ export default function MoreScreen() {
 
   const { rows: notificationRows } = useNotifications(session);
   const unread = notificationRows.filter((n) => !n.read_at).length;
+  const { ranger: myRanger } = useMyRanger(session);
+  const displayRoleLabel =
+    role === 'ranger' && myRanger?.ranger_number
+      ? `レンジャー${myRanger.ranger_number}号`
+      : roleLabel(role);
 
   const items: Item[] = [
     { key: 'notifications', icon: '🔔', label: '通知',           sub: '受注・達成・アラート',   path: '/notifications', badge: unread },
@@ -59,7 +65,7 @@ export default function MoreScreen() {
               <Text style={styles.name}>{displayName}</Text>
               {email ? <Text style={styles.email}>{email}</Text> : null}
               <View style={{ marginTop: 6 }}>
-                <Badge label={roleLabel(role)} tone={role === 'admin' ? 'violet' : 'navy'} />
+                <Badge label={displayRoleLabel} tone={role === 'admin' ? 'violet' : 'navy'} />
               </View>
             </View>
             <Text style={styles.editIcon}>✎</Text>

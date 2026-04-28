@@ -1,3 +1,5 @@
+import { Image } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -20,7 +22,9 @@ export default function CustomerEditScreen() {
   const [branchName, setBranchName] = useState('');
   const [address, setAddress] = useState('');
   const [businessType, setBusinessType] = useState('');
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -29,12 +33,62 @@ export default function CustomerEditScreen() {
     setBranchName(detail.branch_name ?? '');
     setAddress(detail.address ?? '');
     setBusinessType(detail.business_type ?? '');
+    setImageUrl(detail.image_url);
   }, [detail]);
+
+  async function pickImage() {
+    try {
+      setError(null);
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        setError('写真ライブラリへのアクセスが拒否されました');
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: Platform.OS !== 'web',
+        aspect: [16, 9],
+        quality: 0.85,
+      });
+      if (result.canceled || !result.assets?.[0]) return;
+      const asset = result.assets[0];
+      await uploadFromUri(asset.uri, asset.mimeType);
+    } catch (e: any) {
+      setError(e?.message ?? '画像選択に失敗しました');
+    }
+  }
+
+  async function uploadFromUri(uri: string, mimeType?: string) {
+    if (!id) return;
+    setUploading(true);
+    setError(null);
+    try {
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      const ext = (mimeType ?? blob.type).includes('png') ? 'png' : 'jpg';
+      const contentType = ext === 'png' ? 'image/png' : 'image/jpeg';
+      const path = `${id}/store-${Date.now()}.${ext}`;
+
+      const { error: upErr } = await supabase.storage
+        .from('customer-images')
+        .upload(path, blob, { contentType, upsert: true });
+      if (upErr) throw upErr;
+
+      const { data: publicData } = supabase.storage.from('customer-images').getPublicUrl(path);
+      setImageUrl(`${publicData.publicUrl}?t=${Date.now()}`);
+    } catch (e: any) {
+      setError(e?.message ?? 'アップロードに失敗しました');
+    } finally {
+      setUploading(false);
+    }
+  }
 
   async function submit() {
     if (!id || !name.trim()) return;
     setSubmitting(true);
     setError(null);
+
+    const cleanUrl = imageUrl ? imageUrl.split('?')[0] : null;
 
     const { error: err } = await supabase
       .from('customers')
@@ -43,6 +97,7 @@ export default function CustomerEditScreen() {
         branch_name: branchName.trim() || null,
         address: address.trim() || null,
         business_type: businessType || null,
+        image_url: cleanUrl,
       })
       .eq('id', id);
 
@@ -72,12 +127,35 @@ export default function CustomerEditScreen() {
     );
   }
 
-  const canSubmit = name.trim().length > 0 && !submitting;
+  const canSubmit = name.trim().length > 0 && !submitting && !uploading;
 
   return (
     <Screen back>
       <Text style={styles.title}>顧客情報を編集</Text>
       <Text style={styles.sub}>{detail?.customer_code ?? '—'}</Text>
+
+      {/* 店舗画像エリア */}
+      <SectionTitle title="店舗画像" caption="タップして変更" />
+      <Pressable onPress={pickImage} style={styles.imageBox} disabled={uploading}>
+        {imageUrl ? (
+          <Image source={{ uri: imageUrl }} style={styles.image} contentFit="cover" />
+        ) : (
+          <View style={[styles.image, styles.imagePlaceholder]}>
+            <Text style={{ fontSize: 32 }}>🏪</Text>
+            <Text style={styles.imagePlaceholderText}>+ 画像を追加</Text>
+          </View>
+        )}
+        {uploading ? (
+          <View style={styles.imageOverlay}>
+            <Text style={styles.imageOverlayText}>アップロード中...</Text>
+          </View>
+        ) : null}
+      </Pressable>
+      {imageUrl ? (
+        <Pressable onPress={() => setImageUrl(null)} style={{ alignSelf: 'flex-start', marginBottom: 14 }}>
+          <Text style={styles.removeText}>画像を削除</Text>
+        </Pressable>
+      ) : null}
 
       <View style={styles.field}>
         <Text style={styles.label}>店舗名 <Text style={styles.required}>*</Text></Text>
@@ -129,6 +207,36 @@ export default function CustomerEditScreen() {
 const styles = StyleSheet.create({
   title: { fontSize: 24, fontWeight: '800', color: Ink[900], letterSpacing: -0.3 },
   sub: { fontSize: 12, color: Ink[500], marginTop: 4, marginBottom: 20, fontWeight: '700', letterSpacing: 0.5 },
+
+  imageBox: {
+    width: '100%',
+    height: 180,
+    borderRadius: Radius.lg,
+    overflow: 'hidden',
+    marginBottom: 10,
+    backgroundColor: Ink[100],
+    position: 'relative',
+  },
+  image: { width: '100%', height: '100%' },
+  imagePlaceholder: {
+    backgroundColor: 'rgba(30,58,95,0.04)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: Ink[200],
+    borderStyle: 'dashed',
+  },
+  imagePlaceholderText: { fontSize: 12, color: Ink[500], fontWeight: '700' },
+  imageOverlay: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  imageOverlayText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  removeText: { color: '#DC2626', fontSize: 12, fontWeight: '700', marginBottom: 14 },
 
   field: { marginBottom: 14 },
   label: { fontSize: 12, color: Ink[700], fontWeight: '700', marginBottom: 8 },

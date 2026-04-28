@@ -5,7 +5,7 @@ import { Screen } from '@/components/ranger/Screen';
 import { Chip, ChipRow } from '@/components/ui/Chip';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ShimmerList } from '@/components/ui/Shimmer';
-import { Accent, Appetite, Brand, Ink, Radius } from '@/constants/theme';
+import { Accent, Brand, Ink, Radius } from '@/constants/theme';
 import { useAuth } from '@/hooks/use-auth';
 import { type NotificationType, useNotifications } from '@/hooks/use-notifications';
 
@@ -13,7 +13,7 @@ const TYPE_COLOR: Record<NotificationType, string> = {
   order: Brand.navy,
   achievement: Accent.emerald,
   alert: Accent.red,
-  recommend: Appetite.ember,
+  recommend: Brand.navy,
   progress: Accent.amber,
 };
 

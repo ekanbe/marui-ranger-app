@@ -12,8 +12,9 @@ import { Card } from '@/components/ui/Card';
 import { SectionTitle } from '@/components/ui/SectionTitle';
 import { ShimmerCard } from '@/components/ui/Shimmer';
 import { roleLabel } from '@/constants/labels';
-import { Appetite, Brand, Ink, Radius } from '@/constants/theme';
+import { Brand, Ink, Radius } from '@/constants/theme';
 import { useAuth } from '@/hooks/use-auth';
+import { useMyRanger } from '@/hooks/use-my-ranger';
 import { useProfile } from '@/hooks/use-profile';
 import { supabase } from '@/lib/supabase';
 
@@ -22,9 +23,12 @@ const isWeb = Platform.OS === 'web';
 export default function ProfileEditScreen() {
   const { session } = useAuth();
   const { profile, loading, reload } = useProfile(session);
+  const { ranger: myRanger } = useMyRanger(session);
+  const isRanger = profile?.role === 'ranger';
 
   const [displayName, setDisplayName] = useState('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [monthlyGoal, setMonthlyGoal] = useState('');
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,6 +42,12 @@ export default function ProfileEditScreen() {
       setAvatarUrl(profile.avatar_url);
     }
   }, [profile]);
+
+  useEffect(() => {
+    if (myRanger) {
+      setMonthlyGoal(String(myRanger.monthly_goal_jpy ?? 0));
+    }
+  }, [myRanger]);
 
   async function pickImage() {
     try {
@@ -168,12 +178,27 @@ export default function ProfileEditScreen() {
       })
       .eq('id', session.user.id);
 
-    setSaving(false);
     if (err) {
+      setSaving(false);
       setError(err.message);
       return;
     }
 
+    // レンジャーなら月間目標も更新
+    if (isRanger) {
+      const goalNum = Math.max(0, Math.floor(Number(monthlyGoal) || 0));
+      const { error: rErr } = await supabase
+        .from('rangers')
+        .update({ monthly_goal_jpy: goalNum })
+        .eq('id', session.user.id);
+      if (rErr) {
+        setSaving(false);
+        setError(rErr.message);
+        return;
+      }
+    }
+
+    setSaving(false);
     await reload();
 
     const msg = '✅ プロフィールを更新しました';
@@ -273,6 +298,21 @@ export default function ProfileEditScreen() {
         style={styles.input}
       />
 
+      {/* 月間目標（レンジャーのみ） */}
+      {isRanger ? (
+        <>
+          <SectionTitle title="月間目標" caption="達成したい売上金額（円）" style={{ marginTop: 20 }} />
+          <TextInput
+            value={monthlyGoal}
+            onChangeText={setMonthlyGoal}
+            placeholder="500000"
+            placeholderTextColor={Ink[400]}
+            keyboardType="numeric"
+            style={styles.input}
+          />
+        </>
+      ) : null}
+
       {/* 情報（変更不可） */}
       <SectionTitle title="アカウント情報" caption="変更不可" style={{ marginTop: 20 }} />
       <Card variant="muted" padding={16}>
@@ -284,7 +324,11 @@ export default function ProfileEditScreen() {
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>ロール</Text>
           <Badge
-            label={roleLabel(profile.role)}
+            label={
+              isRanger && myRanger?.ranger_number
+                ? `レンジャー${myRanger.ranger_number}号`
+                : roleLabel(profile.role)
+            }
             tone={profile.role === 'admin' ? 'violet' : 'navy'}
           />
         </View>
@@ -323,7 +367,7 @@ const styles = StyleSheet.create({
   uploadingText: { color: '#fff', fontSize: 10, fontWeight: '700' },
 
   avatarActions: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', justifyContent: 'center' },
-  removeText: { color: Appetite.ember, fontSize: 12, fontWeight: '700' },
+  removeText: { color: '#DC2626', fontSize: 12, fontWeight: '700' },
   hint: { fontSize: 10, color: Ink[400], marginTop: 12, textAlign: 'center' },
 
   input: {

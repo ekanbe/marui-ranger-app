@@ -1,9 +1,11 @@
+import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Screen } from '@/components/ranger/Screen';
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { HeroCard } from '@/components/ui/HeroCard';
@@ -13,7 +15,9 @@ import { SectionTitle } from '@/components/ui/SectionTitle';
 import { ShimmerCard } from '@/components/ui/Shimmer';
 import { rankLabel } from '@/constants/labels';
 import { Ink } from '@/constants/theme';
+import { useAuth } from '@/hooks/use-auth';
 import { type DerivedStatus, deriveStatus } from '@/hooks/use-customers';
+import { useProfile } from '@/hooks/use-profile';
 import { useRangerDetail } from '@/hooks/use-ranger-detail';
 import { daysSince, jpy, pct, shortDate } from '@/lib/format';
 
@@ -26,6 +30,9 @@ const STATUS_LABEL: Record<DerivedStatus, string> = { good: '好調', stall: '�
 
 export default function RangerDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { session } = useAuth();
+  const { profile } = useProfile(session);
+  const isAdmin = profile?.role === 'admin';
   const { detail, loading } = useRangerDetail(id);
 
   if (loading) {
@@ -55,6 +62,7 @@ export default function RangerDetailScreen() {
       <View style={styles.header}>
         <Avatar name={detail.display_name} imageUrl={detail.avatar_url} size="xl" />
         <View style={{ flex: 1 }}>
+          <Text style={styles.numberLabel}>レンジャー{detail.ranger_number}号</Text>
           <Text style={styles.name}>{detail.display_name}</Text>
           <View style={styles.badgeRow}>
             <Badge label={rankLabel(detail.current_rank)} tone={detail.current_rank as any} size="md" />
@@ -63,6 +71,16 @@ export default function RangerDetailScreen() {
           {detail.joined_at ? <Text style={styles.subMeta}>加入 {shortDate(detail.joined_at)}</Text> : null}
           {detail.email ? <Text style={styles.subMeta} numberOfLines={1}>{detail.email}</Text> : null}
         </View>
+        {isAdmin ? (
+          <View style={{ alignSelf: 'flex-start' }}>
+            <Button
+              label="編集"
+              variant="secondary"
+              size="sm"
+              onPress={() => router.push({ pathname: '/ranger-edit/[id]', params: { id: detail.id } })}
+            />
+          </View>
+        ) : null}
       </View>
 
       {/* 今月実績ヒーロー */}
@@ -81,7 +99,7 @@ export default function RangerDetailScreen() {
 
       {/* KPI 2x2 */}
       <View style={styles.grid}>
-        <KpiCard label="今月受注" value={`${detail.thisMonthOrderCount}`} unit="件" tone="navy" style={styles.gridItem} />
+        <KpiCard label="今月受注" value={`${detail.thisMonthOrderCount}`} unit="件" tone="ink" style={styles.gridItem} />
         <KpiCard label="累計売上" value={jpy(detail.totalSalesJpy)} tone="ink" delta="全期間" style={styles.gridItem} />
         <KpiCard label="累計受注" value={`${detail.totalOrderCount}`} unit="件" tone="ink" style={styles.gridItem} />
         <KpiCard label="未払報酬" value={jpy(detail.totalCommissionPending)} tone="amber" delta="未確定・確定合計" style={styles.gridItem} />
@@ -106,7 +124,14 @@ export default function RangerDetailScreen() {
                   pressed && { opacity: 0.8 },
                 ]}
               >
-                <View style={{ flex: 1 }}>
+                <View style={styles.custThumbWrap}>
+                  {c.image_url ? (
+                    <Image source={{ uri: c.image_url }} style={styles.custThumb} contentFit="cover" />
+                  ) : (
+                    <View style={[styles.custThumb, styles.custThumbPlaceholder]}><Text style={{ fontSize: 18 }}>🏪</Text></View>
+                  )}
+                </View>
+                <View style={{ flex: 1, minWidth: 0 }}>
                   <Text style={styles.customerName} numberOfLines={1}>
                     {c.name}{c.branch_name ? ` ${c.branch_name}` : ''}
                   </Text>
@@ -133,6 +158,7 @@ const styles = StyleSheet.create({
   notFound: { paddingVertical: 48, textAlign: 'center', color: Ink[500] },
 
   header: { flexDirection: 'row', alignItems: 'flex-start', gap: 14, marginBottom: 20, marginTop: 4 },
+  numberLabel: { fontSize: 10, color: Ink[500], fontWeight: '800', letterSpacing: 1, marginBottom: 4 },
   name: { fontSize: 20, fontWeight: '800', color: Ink[900], letterSpacing: -0.3 },
   badgeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
   code: { fontSize: 11, color: Ink[500], fontWeight: '700', letterSpacing: 0.5 },
@@ -151,10 +177,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
     borderBottomWidth: 1,
     borderBottomColor: Ink[100],
+  },
+  custThumbWrap: {
+    width: 44, height: 44, borderRadius: 10, overflow: 'hidden',
+    backgroundColor: Ink[100],
+  },
+  custThumb: { width: 44, height: 44 },
+  custThumbPlaceholder: {
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(30,58,95,0.04)',
   },
   customerName: { fontSize: 13, fontWeight: '700', color: Ink[900] },
   customerMeta: { fontSize: 11, color: Ink[500] },

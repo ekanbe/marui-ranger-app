@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Chip, ChipRow } from '@/components/ui/Chip';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ShimmerList } from '@/components/ui/Shimmer';
-import { Appetite, Brand, Ink, Radius } from '@/constants/theme';
+import { Accent, Brand, Ink, Radius } from '@/constants/theme';
 import { useProducts } from '@/hooks/use-products';
 import { jpy } from '@/lib/format';
 
@@ -122,7 +122,7 @@ export default function ProductsScreen() {
               {p.solves_pain.length > 0 && (
                 <View style={styles.tagRow}>
                   {p.solves_pain.map((t) => (
-                    <Badge key={t} label={t} tone="ember" />
+                    <Badge key={t} label={t} tone="red" />
                   ))}
                 </View>
               )}
@@ -170,17 +170,17 @@ const styles = StyleSheet.create({
   maker: { fontSize: 10, color: Ink[500], letterSpacing: 0.5, fontWeight: '700', textTransform: 'uppercase' },
   pname: { fontSize: 15, fontWeight: '800', color: Ink[900], marginTop: 4, lineHeight: 20 },
   metaRow: { flexDirection: 'row', gap: 6, marginTop: 6 },
-  price: { fontSize: 20, fontWeight: '800', color: Brand.navy, marginTop: 6, letterSpacing: -0.3 },
+  price: { fontSize: 20, fontWeight: '800', color: Ink[900], marginTop: 6, letterSpacing: -0.3 },
 
   painBox: {
-    backgroundColor: 'rgba(234,88,12,0.06)',
+    backgroundColor: 'rgba(239,68,68,0.05)',
     borderLeftWidth: 3,
-    borderLeftColor: Appetite.ember,
+    borderLeftColor: Accent.red,
     borderRadius: Radius.sm,
     padding: 12,
     marginBottom: 10,
   },
-  painLabel: { fontSize: 10, color: Appetite.ember, fontWeight: '800', letterSpacing: 0.5 },
+  painLabel: { fontSize: 10, color: '#DC2626', fontWeight: '800', letterSpacing: 0.5 },
   painText: { fontSize: 13, color: Ink[900], marginTop: 4, lineHeight: 18 },
 
   pitchBox: {
@@ -191,7 +191,7 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 10,
   },
-  pitchLabel: { fontSize: 10, color: Brand.navy, fontWeight: '800', letterSpacing: 0.5 },
+  pitchLabel: { fontSize: 10, color: Ink[900], fontWeight: '800', letterSpacing: 0.5 },
   pitchText: { fontSize: 12, color: Ink[700], marginTop: 4, lineHeight: 17 },
 
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },

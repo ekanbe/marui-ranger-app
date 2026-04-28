@@ -1,5 +1,5 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, View, ViewStyle } from 'react-native';
-import { Appetite, Brand, Ink, Radius } from '@/constants/theme';
+import { Brand, Ink, Radius } from '@/constants/theme';
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'cta';
 type Size = 'sm' | 'md' | 'lg';
@@ -90,7 +90,8 @@ function variantStyle(v: Variant) {
     case 'danger':
       return { container: { backgroundColor: '#EF4444' }, labelColor: '#fff' };
     case 'cta':
-      return { container: { backgroundColor: Appetite.ember }, labelColor: '#fff' };
+      // 旧: Appetite.ember。新ルール：primary と同じ navy（一貫性を優先）
+      return { container: { backgroundColor: Brand.navy }, labelColor: '#fff' };
     case 'primary':
     default:
       return { container: { backgroundColor: Brand.navy }, labelColor: '#fff' };

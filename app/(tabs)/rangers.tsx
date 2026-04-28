@@ -29,10 +29,20 @@ export default function RangersScreen() {
 
   return (
     <Screen>
-      <Text style={styles.title}>レンジャー管理</Text>
-      <Text style={styles.sub}>
-        稼働 {overview.totalRangers} 名・今月売上合計 {jpy(totalSales)}
-      </Text>
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.title}>レンジャー管理</Text>
+          <Text style={styles.sub}>
+            稼働 {overview.totalRangers} 名・今月売上合計 {jpy(totalSales)}
+          </Text>
+        </View>
+        <Pressable
+          onPress={() => router.push('/ranger-new')}
+          style={({ pressed }) => [styles.addBtn, pressed && { opacity: 0.85 }]}
+        >
+          <Text style={styles.addBtnText}>+ レンジャーを追加</Text>
+        </Pressable>
+      </View>
 
       <View style={styles.listWrap}>
         {overview.rangers.map((r, i) => {
@@ -49,6 +59,7 @@ export default function RangersScreen() {
                 <Text style={[styles.rank, i < 3 && { fontSize: 24 }]}>{medal}</Text>
                 <Avatar name={r.display_name} imageUrl={r.avatar_url} size="md" />
                 <View style={{ flex: 1, marginLeft: 10 }}>
+                  <Text style={styles.numberLabel}>レンジャー{r.ranger_number}号</Text>
                   <Text style={styles.name}>{r.display_name}</Text>
                   <View style={{ marginTop: 4, flexDirection: 'row', gap: 6 }}>
                     <Badge label={rankLabel(r.current_rank)} tone={r.current_rank as any} />
@@ -80,8 +91,11 @@ export default function RangersScreen() {
 }
 
 const styles = StyleSheet.create({
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18, gap: 12, flexWrap: 'wrap' },
   title: { fontSize: 24, fontWeight: '800', color: Ink[900], letterSpacing: -0.3 },
-  sub: { fontSize: 12, color: Ink[500], marginTop: 4, marginBottom: 18 },
+  sub: { fontSize: 12, color: Ink[500], marginTop: 4 },
+  addBtn: { backgroundColor: Brand.navy, paddingHorizontal: 16, paddingVertical: 11, borderRadius: Radius.sm },
+  addBtnText: { color: '#fff', fontSize: 13, fontWeight: '800', letterSpacing: 0.3 },
 
   listWrap: { gap: 10, marginBottom: 20 },
   card: {
@@ -93,8 +107,9 @@ const styles = StyleSheet.create({
   },
   cardTop: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   rank: { fontSize: 16, fontWeight: '800', color: Ink[700], textAlign: 'center', width: 36 },
+  numberLabel: { fontSize: 10, color: Ink[500], fontWeight: '800', letterSpacing: 1, marginBottom: 2 },
   name: { fontSize: 15, fontWeight: '800', color: Ink[900] },
-  sales: { fontSize: 16, fontWeight: '800', color: Brand.navy },
+  sales: { fontSize: 16, fontWeight: '800', color: Ink[900] },
   salesLabel: { fontSize: 10, color: Ink[500], marginTop: 2 },
 
   shareRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 14 },

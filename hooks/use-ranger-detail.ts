@@ -8,6 +8,7 @@ export type RangerDetail = {
   avatar_url: string | null;
   email: string | null;
   ranger_code: string;
+  ranger_number: number;
   joined_at: string | null;
   monthly_goal_jpy: number;
   current_rank: string;
@@ -28,6 +29,7 @@ export type RangerDetail = {
     id: string;
     name: string;
     branch_name: string | null;
+    image_url: string | null;
     last_ordered_at: string | null;
     status: string;
   }>;
@@ -55,11 +57,16 @@ export function useRangerDetail(rangerId: string | undefined) {
     let mounted = true;
 
     (async () => {
-      const [rangerRes, summaryRes, commissionsRes, customersRes, orderCountRes] = await Promise.all([
+      const [rangerRes, numberRes, summaryRes, commissionsRes, customersRes, orderCountRes] = await Promise.all([
         supabase
           .from('rangers')
           .select('id, ranger_code, joined_at, monthly_goal_jpy, current_rank, profiles!inner(display_name, email, avatar_url)')
           .eq('id', rangerId)
+          .maybeSingle(),
+        supabase
+          .from('v_ranger_numbers')
+          .select('ranger_number')
+          .eq('ranger_id', rangerId)
           .maybeSingle(),
         supabase
           .from('v_ranger_monthly_summary')
@@ -72,7 +79,7 @@ export function useRangerDetail(rangerId: string | undefined) {
           .eq('ranger_id', rangerId),
         supabase
           .from('customers')
-          .select('id, name, branch_name, last_ordered_at, status')
+          .select('id, name, branch_name, image_url, last_ordered_at, status')
           .eq('assigned_ranger_id', rangerId)
           .order('last_ordered_at', { ascending: false, nullsFirst: false }),
         supabase
@@ -124,9 +131,12 @@ export function useRangerDetail(rangerId: string | undefined) {
         id: string;
         name: string;
         branch_name: string | null;
+        image_url: string | null;
         last_ordered_at: string | null;
         status: string;
       }>;
+
+      const numberData = numberRes.data as { ranger_number: number | string } | null;
 
       setDetail({
         id: r.id,
@@ -134,6 +144,7 @@ export function useRangerDetail(rangerId: string | undefined) {
         avatar_url: r.profiles?.avatar_url ?? null,
         email: r.profiles?.email ?? null,
         ranger_code: r.ranger_code,
+        ranger_number: Number(numberData?.ranger_number ?? 0),
         joined_at: r.joined_at,
         monthly_goal_jpy: monthlyGoalJpy,
         current_rank: r.current_rank,
