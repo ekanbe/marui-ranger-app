@@ -1,0 +1,36 @@
+# EAS Build にアップロードしないファイル
+# .gitignore より優先される
+
+# Expo キャッシュ・成果物（OneDrive で readonly になりがち）
+.expo/
+.expo-shared/
+dist/
+dist-*/
+web-build/
+
+# Node modules（EAS が自分でインストール）
+node_modules/
+
+# 環境変数（クライアント用は EAS 環境変数に登録、ビルド時には不要）
+.env
+.env.local
+.env.*
+
+# ローカルキャッシュ
+.metro-health-check*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# ログ
+*.log
+logs/
+
+# テストスクリーンショット
+screenshots/
+screenshots-prod/
