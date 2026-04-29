@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ShowroomInviteModal } from '@/components/showroom/ShowroomInviteModal';
 import { Screen } from '@/components/ranger/Screen';
@@ -13,6 +13,7 @@ import { ShimmerCard } from '@/components/ui/Shimmer';
 import { Accent, Brand, Ink, Radius } from '@/constants/theme';
 import { deriveStatus, type DerivedStatus } from '@/hooks/use-customers';
 import { useCustomerDetail } from '@/hooks/use-customer-detail';
+import { useCustomerKarte } from '@/hooks/use-customer-karte';
 import { useCustomerOrders } from '@/hooks/use-customer-orders';
 import { daysSince, jpy, shortDate } from '@/lib/format';
 
@@ -37,10 +38,35 @@ const ORDER_STATUS_TONE: Record<OrderStatus, 'amber' | 'emerald' | 'navy' | 'neu
   cancelled: 'neutral',
 };
 
+const SIZE_LABEL: Record<string, string> = { small: '小', medium: '中', large: '大' };
+const SEGMENT_LABEL: Record<string, string> = {
+  family: 'ファミリー',
+  business: 'ビジネス',
+  tourist: '観光客',
+  student: '学生',
+  senior: 'シニア',
+  mixed: '混合',
+};
+function triLabel(v: boolean | null): string {
+  if (v === true) return 'あり';
+  if (v === false) return 'なし';
+  return '—';
+}
+
+function KarteItem({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.karteItem}>
+      <Text style={styles.karteItemLabel}>{label}</Text>
+      <Text style={styles.karteItemValue}>{value}</Text>
+    </View>
+  );
+}
+
 export default function CustomerDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { detail, loading } = useCustomerDetail(id);
   const { orders } = useCustomerOrders(id, 10);
+  const { karte } = useCustomerKarte(id);
   const [inviteOpen, setInviteOpen] = useState(false);
 
   if (loading) {
@@ -171,6 +197,51 @@ export default function CustomerDetailScreen() {
             {detail.painPoints.map((p) => <Badge key={p} label={p} tone="red" size="md" />)}
           </View>
         </>
+      )}
+
+      {/* カルテ */}
+      <SectionTitle title="顧客カルテ" caption="厨房・オペ・客層の構造化情報" />
+      {karte ? (
+        <Card variant="surface" padding={14}>
+          <View style={styles.karteGrid}>
+            <KarteItem label="フライヤー" value={triLabel(karte.has_fryer)} />
+            <KarteItem label="オーブン" value={triLabel(karte.has_convection_oven)} />
+            <KarteItem label="冷凍庫" value={karte.freezer_capacity ? SIZE_LABEL[karte.freezer_capacity] : '—'} />
+            <KarteItem label="厨房サイズ" value={karte.kitchen_size ? SIZE_LABEL[karte.kitchen_size] : '—'} />
+            <KarteItem label="スタッフ数" value={karte.staff_count != null ? `${karte.staff_count} 人` : '—'} />
+            <KarteItem label="平均提供時間" value={karte.avg_serve_minutes != null ? `${karte.avg_serve_minutes} 分` : '—'} />
+            <KarteItem label="客単価" value={karte.avg_check_yen != null ? jpy(karte.avg_check_yen) : '—'} />
+            <KarteItem label="客層" value={karte.customer_segment ? SEGMENT_LABEL[karte.customer_segment] : '—'} />
+          </View>
+          {karte.peak_hours ? (
+            <Text style={styles.karteSub}>ピーク時間: {karte.peak_hours}</Text>
+          ) : null}
+          {karte.signature_dish ? (
+            <Text style={styles.karteSub}>看板商品: {karte.signature_dish}</Text>
+          ) : null}
+          <Pressable
+            onPress={() => router.push({ pathname: '/customer-karte/[id]', params: { id: detail.id } })}
+            style={styles.karteEditBtn}
+          >
+            <Text style={styles.karteEditBtnText}>カルテを編集</Text>
+          </Pressable>
+        </Card>
+      ) : (
+        <Card variant="muted" padding={16}>
+          <Text style={styles.karteEmptyText}>カルテ未登録</Text>
+          <Text style={styles.karteEmptySub}>
+            厨房環境・オペ・客層を登録すると、提案候補がより正確になります
+          </Text>
+          <View style={{ marginTop: 12 }}>
+            <Button
+              label="＋ カルテを作成"
+              variant="primary"
+              size="md"
+              fullWidth
+              onPress={() => router.push({ pathname: '/customer-karte/[id]', params: { id: detail.id } })}
+            />
+          </View>
+        </Card>
       )}
 
       {/* 提案候補 */}
@@ -330,4 +401,21 @@ const styles = StyleSheet.create({
   },
   ecOrderTagText: { color: Brand.gold, fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
   ecOrderSub: { fontSize: 11, color: Brand.gold, fontStyle: 'italic', marginTop: 2 },
+
+  karteGrid: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 4 },
+  karteItem: { width: '50%', paddingVertical: 6 },
+  karteItemLabel: { fontSize: 10, color: Ink[500], fontWeight: '700', letterSpacing: 0.3 },
+  karteItemValue: { fontSize: 13, color: Ink[900], fontWeight: '700', marginTop: 2 },
+  karteSub: { fontSize: 11, color: Ink[600], marginTop: 8 },
+  karteEditBtn: {
+    marginTop: 12,
+    paddingVertical: 10,
+    borderRadius: Radius.sm,
+    borderWidth: 1,
+    borderColor: Ink[200],
+    alignItems: 'center',
+  },
+  karteEditBtnText: { fontSize: 12, color: Ink[700], fontWeight: '700' },
+  karteEmptyText: { fontSize: 13, color: Ink[700], fontWeight: '700', textAlign: 'center' },
+  karteEmptySub: { fontSize: 11, color: Ink[500], textAlign: 'center', marginTop: 4, lineHeight: 16 },
 });
