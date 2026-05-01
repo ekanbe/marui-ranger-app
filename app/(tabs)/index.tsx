@@ -25,6 +25,7 @@ import { useProfile } from '@/hooks/use-profile';
 import { useTodayTasks } from '@/hooks/use-today-tasks';
 import { jpy, pct } from '@/lib/format';
 import { homeKpis, rangerProfile } from '@/lib/mockData';
+import { SALES_PHASES } from '@/lib/sales-phase';
 
 // ============================================================
 // Admin Dashboard
@@ -286,6 +287,15 @@ export default function HomeScreen() {
     ? customers.filter((c) => deriveStatus(c.last_ordered_at) === 'follow').length
     : k.customersFollow;
 
+  // ── 営業フェーズ集計（レンジャー獲得顧客のみ）──
+  const acquiredCustomers = customers.filter((c) => c.acquired_by_ranger_id);
+  const phaseCounts = SALES_PHASES.map((p) => ({
+    key: p.key,
+    label: p.label,
+    count: acquiredCustomers.filter((c) => c.sales_phase === p.key).length,
+  }));
+  const totalAcquired = acquiredCustomers.length;
+
   // ── EC継続収入：source=ec の commissions から算出 ──
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -397,6 +407,32 @@ export default function HomeScreen() {
           style={styles.gridItem}
         />
       </View>
+
+      {/* 獲得顧客のフェーズ別件数（レンジャー獲得顧客がある時のみ） */}
+      {totalAcquired > 0 ? (
+        <>
+          <SectionTitle title="獲得顧客のフェーズ" caption={`${totalAcquired} 名`} />
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.phaseStatsRow}
+            style={{ marginBottom: 18 }}
+          >
+            {phaseCounts.map((p) => (
+              <Pressable
+                key={p.key}
+                onPress={() => router.push('/(tabs)/customers')}
+                style={[styles.phaseStatCard, p.count === 0 && styles.phaseStatCardEmpty]}
+              >
+                <Text style={[styles.phaseStatCount, p.count === 0 && styles.phaseStatCountEmpty]}>
+                  {p.count}
+                </Text>
+                <Text style={styles.phaseStatLabel}>{p.label}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        </>
+      ) : null}
 
       {/* EC継続収入カード（source=ec の commissions 集計） */}
       {ecCommissions.length > 0 ? (
@@ -651,4 +687,20 @@ const styles = StyleSheet.create({
   footerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 20 },
   footerLogo: { width: 18, height: 18, borderRadius: 4 },
   footerCredit: { textAlign: 'center', color: Ink[400], fontSize: 10, letterSpacing: 2 },
+
+  phaseStatsRow: { gap: 8, paddingVertical: 4 },
+  phaseStatCard: {
+    width: 76,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    backgroundColor: '#fff',
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: Ink[100],
+    alignItems: 'center',
+  },
+  phaseStatCardEmpty: { backgroundColor: 'rgba(0,0,0,0.02)' },
+  phaseStatCount: { fontSize: 22, fontWeight: '800', color: Ink[900], letterSpacing: -0.5 },
+  phaseStatCountEmpty: { color: Ink[300] },
+  phaseStatLabel: { fontSize: 10, color: Ink[600], marginTop: 6, fontWeight: '700', letterSpacing: 0.3 },
 });

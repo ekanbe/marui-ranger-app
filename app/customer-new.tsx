@@ -53,6 +53,9 @@ export default function NewCustomerScreen() {
         address: address.trim() || null,
         business_type: businessType || null,
         assigned_ranger_id: session.user.id,
+        acquired_by_ranger_id: session.user.id,
+        acquired_at: now.toISOString(),
+        sales_phase: 'credit_check',
         status: 'active',
       })
       .select('id')

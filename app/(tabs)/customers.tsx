@@ -11,6 +11,7 @@ import { ShimmerList } from '@/components/ui/Shimmer';
 import { Brand, Ink, Radius } from '@/constants/theme';
 import { type DerivedStatus, deriveStatus, useCustomers } from '@/hooks/use-customers';
 import { daysSince } from '@/lib/format';
+import { getPhaseLabel, getPhaseTone } from '@/lib/sales-phase';
 
 type Filter = 'all' | DerivedStatus;
 
@@ -142,12 +143,21 @@ export default function CustomersScreen() {
                     )}
                   </View>
                   <View style={{ flex: 1, minWidth: 0 }}>
-                    <Badge
-                      label={STATUS_LABEL[c.derivedStatus]}
-                      tone={STATUS_TONE[c.derivedStatus]}
-                      size="sm"
-                      dot
-                    />
+                    <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
+                      <Badge
+                        label={STATUS_LABEL[c.derivedStatus]}
+                        tone={STATUS_TONE[c.derivedStatus]}
+                        size="sm"
+                        dot
+                      />
+                      {c.acquired_by_ranger_id ? (
+                        <Badge
+                          label={getPhaseLabel(c.sales_phase)}
+                          tone={getPhaseTone(c.sales_phase)}
+                          size="sm"
+                        />
+                      ) : null}
+                    </View>
                     <Text style={styles.custName} numberOfLines={1}>
                       {c.name}
                       {c.branch_name ? ` ${c.branch_name}` : ''}

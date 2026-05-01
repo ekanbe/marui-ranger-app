@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { supabase } from '@/lib/supabase';
+import type { SalesPhase } from '@/lib/sales-phase';
 
 export type Recommendation = {
   id: string;
@@ -20,6 +21,9 @@ export type CustomerDetail = {
   customer_code: string;
   image_url: string | null;
   last_ordered_at: string | null;
+  sales_phase: SalesPhase | null;
+  sales_phase_updated_at: string | null;
+  acquired_by_ranger_id: string | null;
   painPoints: string[];
   monthSalesJpy: number;
   totalSalesJpy: number;
@@ -51,105 +55,109 @@ export function useCustomerDetail(customerId: string | undefined) {
   const [detail, setDetail] = useState<CustomerDetail | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const fetchDetail = useCallback(async () => {
     if (!customerId) {
       setLoading(false);
       setDetail(null);
       return;
     }
-    let mounted = true;
 
-    (async () => {
-      const [custRes, ordersRes, recsRes] = await Promise.all([
-        supabase
-          .from('customers')
-          .select(
-            `id, name, branch_name, address, business_type, customer_code, status, image_url, last_ordered_at,
-             customer_attributes ( attribute_key, attribute_value )`
-          )
-          .eq('id', customerId)
-          .maybeSingle(),
-        supabase
-          .from('orders')
-          .select('ordered_at, total_amount_jpy')
-          .eq('customer_id', customerId),
-        supabase
-          .from('recommendations')
-          .select(
-            `id, score, reason,
-             products ( id, name, pitch_script )`
-          )
-          .eq('customer_id', customerId)
-          .order('score', { ascending: false })
-          .limit(3),
-      ]);
+    const [custRes, ordersRes, recsRes] = await Promise.all([
+      supabase
+        .from('customers')
+        .select(
+          `id, name, branch_name, address, business_type, customer_code, status, image_url, last_ordered_at,
+           sales_phase, sales_phase_updated_at, acquired_by_ranger_id,
+           customer_attributes ( attribute_key, attribute_value )`
+        )
+        .eq('id', customerId)
+        .maybeSingle(),
+      supabase
+        .from('orders')
+        .select('ordered_at, total_amount_jpy')
+        .eq('customer_id', customerId),
+      supabase
+        .from('recommendations')
+        .select(
+          `id, score, reason,
+           products ( id, name, pitch_script )`
+        )
+        .eq('customer_id', customerId)
+        .order('score', { ascending: false })
+        .limit(3),
+    ]);
 
-      if (!mounted) return;
+    if (custRes.error) console.warn('[useCustomerDetail cust]', custRes.error.message);
+    if (ordersRes.error) console.warn('[useCustomerDetail orders]', ordersRes.error.message);
+    if (recsRes.error) console.warn('[useCustomerDetail recs]', recsRes.error.message);
 
-      if (custRes.error) console.warn('[useCustomerDetail cust]', custRes.error.message);
-      if (ordersRes.error) console.warn('[useCustomerDetail orders]', ordersRes.error.message);
-      if (recsRes.error) console.warn('[useCustomerDetail recs]', recsRes.error.message);
+    const cust = custRes.data as
+      | {
+          id: string;
+          name: string;
+          branch_name: string | null;
+          address: string | null;
+          business_type: string | null;
+          customer_code: string;
+          image_url: string | null;
+          last_ordered_at: string | null;
+          sales_phase: SalesPhase | null;
+          sales_phase_updated_at: string | null;
+          acquired_by_ranger_id: string | null;
+          customer_attributes: { attribute_key: string; attribute_value: string }[] | null;
+        }
+      | null;
 
-      const cust = custRes.data as
-        | {
-            id: string;
-            name: string;
-            branch_name: string | null;
-            address: string | null;
-            business_type: string | null;
-            customer_code: string;
-            image_url: string | null;
-            last_ordered_at: string | null;
-            customer_attributes: { attribute_key: string; attribute_value: string }[] | null;
-          }
-        | null;
+    const orders = (ordersRes.data ?? []) as { ordered_at: string; total_amount_jpy: number | null }[];
 
-      const orders = (ordersRes.data ?? []) as { ordered_at: string; total_amount_jpy: number | null }[];
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const totalSales = orders.reduce((s, o) => s + Number(o.total_amount_jpy ?? 0), 0);
+    const monthSales = orders
+      .filter((o) => new Date(o.ordered_at) >= monthStart)
+      .reduce((s, o) => s + Number(o.total_amount_jpy ?? 0), 0);
 
-      const now = new Date();
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      const totalSales = orders.reduce((s, o) => s + Number(o.total_amount_jpy ?? 0), 0);
-      const monthSales = orders
-        .filter((o) => new Date(o.ordered_at) >= monthStart)
-        .reduce((s, o) => s + Number(o.total_amount_jpy ?? 0), 0);
+    const painPoints = (cust?.customer_attributes ?? [])
+      .filter((a) => a.attribute_key === 'pain_point')
+      .map((a) => PAIN_LABEL_FALLBACK(a.attribute_value));
 
-      const painPoints = (cust?.customer_attributes ?? [])
-        .filter((a) => a.attribute_key === 'pain_point')
-        .map((a) => PAIN_LABEL_FALLBACK(a.attribute_value));
+    const recommendations: Recommendation[] = ((recsRes.data ?? []) as unknown as NestedRecommendation[]).map(
+      (r) => ({
+        id: r.id,
+        score: Number(r.score ?? 0),
+        reason: r.reason,
+        product_id: r.products?.id ?? '',
+        product_name: r.products?.name ?? '-',
+        pitch_script: r.products?.pitch_script ?? null,
+      })
+    );
 
-      const recommendations: Recommendation[] = ((recsRes.data ?? []) as unknown as NestedRecommendation[]).map(
-        (r) => ({
-          id: r.id,
-          score: Number(r.score ?? 0),
-          reason: r.reason,
-          product_id: r.products?.id ?? '',
-          product_name: r.products?.name ?? '-',
-          pitch_script: r.products?.pitch_script ?? null,
-        })
-      );
-
-      setDetail({
-        id: cust?.id ?? customerId,
-        name: cust?.name ?? '',
-        branch_name: cust?.branch_name ?? null,
-        address: cust?.address ?? null,
-        business_type: cust?.business_type ?? null,
-        customer_code: cust?.customer_code ?? '',
-        image_url: cust?.image_url ?? null,
-        last_ordered_at: cust?.last_ordered_at ?? null,
-        painPoints,
-        monthSalesJpy: monthSales,
-        totalSalesJpy: totalSales,
-        monthMarginJpy: Math.round(monthSales * 0.02),
-        recommendations,
-      });
-      setLoading(false);
-    })();
-
-    return () => {
-      mounted = false;
-    };
+    setDetail({
+      id: cust?.id ?? customerId,
+      name: cust?.name ?? '',
+      branch_name: cust?.branch_name ?? null,
+      address: cust?.address ?? null,
+      business_type: cust?.business_type ?? null,
+      customer_code: cust?.customer_code ?? '',
+      image_url: cust?.image_url ?? null,
+      last_ordered_at: cust?.last_ordered_at ?? null,
+      sales_phase: cust?.sales_phase ?? null,
+      sales_phase_updated_at: cust?.sales_phase_updated_at ?? null,
+      acquired_by_ranger_id: cust?.acquired_by_ranger_id ?? null,
+      painPoints,
+      monthSalesJpy: monthSales,
+      totalSalesJpy: totalSales,
+      monthMarginJpy: Math.round(monthSales * 0.02),
+      recommendations,
+    });
+    setLoading(false);
   }, [customerId]);
 
-  return { detail, loading };
+  useEffect(() => {
+    let mounted = true;
+    fetchDetail().then(() => { if (!mounted) return; });
+    return () => { mounted = false; };
+  }, [fetchDetail]);
+
+  return { detail, loading, refetch: fetchDetail };
 }

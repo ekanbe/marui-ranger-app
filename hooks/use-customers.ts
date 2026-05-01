@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { supabase } from '@/lib/supabase';
+import type { SalesPhase } from '@/lib/sales-phase';
 
 export type CustomerRow = {
   id: string;
@@ -11,6 +12,8 @@ export type CustomerRow = {
   status: string;
   image_url: string | null;
   last_ordered_at: string | null;
+  sales_phase: SalesPhase | null;
+  acquired_by_ranger_id: string | null;
 };
 
 export type DerivedStatus = 'good' | 'stall' | 'follow';
@@ -36,7 +39,9 @@ export function useCustomers() {
     let mounted = true;
     supabase
       .from('customers')
-      .select('id, name, branch_name, address, business_type, status, image_url, last_ordered_at')
+      .select(
+        'id, name, branch_name, address, business_type, status, image_url, last_ordered_at, sales_phase, acquired_by_ranger_id'
+      )
       .order('last_ordered_at', { ascending: false, nullsFirst: false })
       .then(({ data, error }) => {
         if (!mounted) return;

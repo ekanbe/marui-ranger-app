@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ShowroomInviteModal } from '@/components/showroom/ShowroomInviteModal';
 import { Screen } from '@/components/ranger/Screen';
@@ -16,6 +16,8 @@ import { useCustomerDetail } from '@/hooks/use-customer-detail';
 import { useCustomerKarte } from '@/hooks/use-customer-karte';
 import { useCustomerOrders } from '@/hooks/use-customer-orders';
 import { daysSince, jpy, shortDate } from '@/lib/format';
+import { SALES_PHASES, type SalesPhase, getPhaseLabel, getPhaseTone } from '@/lib/sales-phase';
+import { supabase } from '@/lib/supabase';
 
 const STATUS_LABEL: Record<DerivedStatus, string> = { good: '好調', stall: '停滞', follow: '要フォロー' };
 const STATUS_TONE: Record<DerivedStatus, 'emerald' | 'amber' | 'red'> = {
@@ -64,10 +66,27 @@ function KarteItem({ label, value }: { label: string; value: string }) {
 
 export default function CustomerDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { detail, loading } = useCustomerDetail(id);
+  const { detail, loading, refetch } = useCustomerDetail(id);
   const { orders } = useCustomerOrders(id, 10);
   const { karte } = useCustomerKarte(id);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [phaseUpdating, setPhaseUpdating] = useState(false);
+
+  async function updateSalesPhase(next: SalesPhase) {
+    if (!detail || phaseUpdating) return;
+    if (detail.sales_phase === next) return;
+    setPhaseUpdating(true);
+    const { error } = await supabase
+      .from('customers')
+      .update({ sales_phase: next })
+      .eq('id', detail.id);
+    setPhaseUpdating(false);
+    if (error) {
+      Alert.alert('フェーズ更新失敗', error.message);
+      return;
+    }
+    await refetch();
+  }
 
   if (loading) {
     return (
@@ -110,7 +129,12 @@ export default function CustomerDetailScreen() {
 
       {/* ヘッダ */}
       <View style={{ marginBottom: 16 }}>
-        <Badge label={STATUS_LABEL[status]} tone={STATUS_TONE[status]} size="md" dot />
+        <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
+          <Badge label={STATUS_LABEL[status]} tone={STATUS_TONE[status]} size="md" dot />
+          {detail.acquired_by_ranger_id ? (
+            <Badge label={getPhaseLabel(detail.sales_phase)} tone={getPhaseTone(detail.sales_phase)} size="md" />
+          ) : null}
+        </View>
         <Text style={styles.name}>{detail.name}</Text>
         {detail.branch_name ? <Text style={styles.branch}>{detail.branch_name}</Text> : null}
         <Text style={styles.meta}>
@@ -188,6 +212,39 @@ export default function CustomerDetailScreen() {
         customerId={detail.id}
         customerName={detail.name}
       />
+
+      {/* 営業フェーズ（レンジャー獲得顧客のみ） */}
+      {detail.acquired_by_ranger_id ? (
+        <>
+          <SectionTitle
+            title="営業フェーズ"
+            caption={
+              detail.sales_phase_updated_at
+                ? `${shortDate(detail.sales_phase_updated_at)} 更新`
+                : '未設定'
+            }
+          />
+          <Card variant="surface" padding={14}>
+            <View style={styles.phaseRow}>
+              {SALES_PHASES.map((p) => {
+                const active = detail.sales_phase === p.key;
+                return (
+                  <Pressable
+                    key={p.key}
+                    onPress={() => updateSalesPhase(p.key)}
+                    disabled={phaseUpdating}
+                    style={[styles.phaseBtn, active && styles.phaseBtnActive]}
+                  >
+                    <Text style={[styles.phaseBtnText, active && styles.phaseBtnTextActive]}>
+                      {p.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </Card>
+        </>
+      ) : null}
 
       {/* 悲鳴 */}
       {detail.painPoints.length > 0 && (
@@ -418,4 +475,17 @@ const styles = StyleSheet.create({
   karteEditBtnText: { fontSize: 12, color: Ink[700], fontWeight: '700' },
   karteEmptyText: { fontSize: 13, color: Ink[700], fontWeight: '700', textAlign: 'center' },
   karteEmptySub: { fontSize: 11, color: Ink[500], textAlign: 'center', marginTop: 4, lineHeight: 16 },
+
+  phaseRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  phaseBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: Ink[200],
+    backgroundColor: '#fff',
+  },
+  phaseBtnActive: { backgroundColor: Brand.navy, borderColor: Brand.navy },
+  phaseBtnText: { fontSize: 12, fontWeight: '700', color: Ink[700] },
+  phaseBtnTextActive: { color: '#fff' },
 });
