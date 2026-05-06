@@ -4,7 +4,7 @@ import type { Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 
 export type CommissionStatus = 'pending' | 'confirmed' | 'paid';
-export type OrderSource = 'manual' | 'ec' | 'showroom';
+export type OrderSource = 'manual' | 'ec' | 'showroom' | 'bcart';
 
 export type CommissionRow = {
   id: string;

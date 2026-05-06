@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Screen } from '@/components/ranger/Screen';
 import { Avatar } from '@/components/ui/Avatar';
@@ -274,7 +274,8 @@ export default function HomeScreen() {
   const avatarUrl = profile?.avatar_url;
   const role = profile?.role ?? rangerProfile.rank;
 
-  if (profile?.role === 'admin') {
+  // 管理ダッシュボードは Web 限定
+  if (profile?.role === 'admin' && Platform.OS === 'web') {
     return <AdminDashboard displayName={displayName} avatarUrl={avatarUrl} />;
   }
 
@@ -307,6 +308,16 @@ export default function HomeScreen() {
     (c) => new Date(c.ordered_at) >= monthStart
   ).length;
   const ecCustomerCount = new Set(ecCommissions.map((c) => c.customer_name).filter(Boolean)).size;
+
+  // ── 直接取引（Bカート）：source=bcart の commissions から算出 ──
+  const bcartCommissions = commissions.filter((c) => c.source === 'bcart');
+  const bcartThisMonthJpy = bcartCommissions
+    .filter((c) => new Date(c.ordered_at) >= monthStart && c.status !== 'paid')
+    .reduce((s, c) => s + c.ranger_amount_jpy, 0);
+  const bcartThisMonthCount = bcartCommissions.filter(
+    (c) => new Date(c.ordered_at) >= monthStart
+  ).length;
+  const bcartCustomerCount = new Set(bcartCommissions.map((c) => c.customer_name).filter(Boolean)).size;
 
   return (
     <Screen>
@@ -457,6 +468,32 @@ export default function HomeScreen() {
             </Text>
           </View>
           <Text style={styles.ecIncomeArrow}>›</Text>
+        </Pressable>
+      ) : null}
+
+      {/* Bカート直接取引カード（source=bcart の commissions 集計） */}
+      {bcartCommissions.length > 0 ? (
+        <Pressable
+          onPress={() => router.push('/(tabs)/margin')}
+          style={styles.bcartIncomeCard}
+        >
+          <View style={styles.ecIncomeLeft}>
+            <View style={styles.bcartIncomeBadge}>
+              <Text style={styles.bcartIncomeBadgeText}>直接取引</Text>
+            </View>
+            <Text style={styles.ecIncomeLabel}>Bカート 経由のBtoB受注</Text>
+            <Text style={styles.bcartIncomeValue}>{jpy(bcartThisMonthJpy)}</Text>
+            <Text style={styles.ecIncomeSub}>
+              今月 {bcartThisMonthCount} 件 ／ {bcartCustomerCount} 社の顧客
+            </Text>
+          </View>
+          <View style={styles.ecIncomeRight}>
+            <Text style={styles.ecIncomeEmoji}>🏢</Text>
+            <Text style={styles.ecIncomeHint}>
+              見積→発注の{'\n'}自動同期
+            </Text>
+          </View>
+          <Text style={styles.bcartIncomeArrow}>›</Text>
         </Pressable>
       ) : null}
 
@@ -674,6 +711,28 @@ const styles = StyleSheet.create({
   ecIncomeEmoji: { fontSize: 28 },
   ecIncomeHint: { color: 'rgba(255,255,255,0.65)', fontSize: 10, textAlign: 'center', lineHeight: 14 },
   ecIncomeArrow: { color: Brand.gold, fontSize: 22, fontWeight: '300' },
+
+  // レンジャー用：Bカート直接取引カード（ゴールド背景＋ネイビー強調で EC と差別化）
+  bcartIncomeCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: '#F4ECD9',
+    borderRadius: Radius.lg,
+    padding: 16,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: Brand.gold,
+  },
+  bcartIncomeBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: Brand.navy,
+    borderRadius: 999,
+    paddingVertical: 2,
+    paddingHorizontal: 8,
+    marginBottom: 6,
+  },
+  bcartIncomeBadgeText: { color: '#FFFFFF', fontSize: 10, fontWeight: '800', letterSpacing: 1 },
+  bcartIncomeValue: { color: Brand.navy, fontSize: 24, fontWeight: '900', marginTop: 2, letterSpacing: -0.3 },
+  bcartIncomeArrow: { color: Brand.navy, fontSize: 22, fontWeight: '300' },
   ecSyncIconBox: {
     width: 40, height: 40, borderRadius: 20,
     backgroundColor: 'rgba(30,58,95,0.06)',

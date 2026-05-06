@@ -345,11 +345,18 @@ export default function CustomerDetailScreen() {
                     <Text style={styles.ecOrderTagText}>🔗 EC</Text>
                   </View>
                 ) : null}
+                {o.source === 'bcart' ? (
+                  <View style={styles.bcartOrderTag}>
+                    <Text style={styles.bcartOrderTagText}>🏢 Bカート</Text>
+                  </View>
+                ) : null}
                 <Badge label={ORDER_STATUS_LABEL[o.status]} tone={ORDER_STATUS_TONE[o.status]} />
                 <Text style={styles.orderAmount}>{jpy(o.total_amount_jpy)}</Text>
               </View>
               {o.source === 'ec' ? (
                 <Text style={styles.ecOrderSub}>foodboat.jp 経由の自動受注</Text>
+              ) : o.source === 'bcart' ? (
+                <Text style={styles.bcartOrderSub}>Bカート経由の直接取引（自動同期）</Text>
               ) : (
                 o.items.map((item, idx) => (
                   <Text key={idx} style={styles.orderItemText}>
@@ -458,6 +465,16 @@ const styles = StyleSheet.create({
   },
   ecOrderTagText: { color: Brand.gold, fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
   ecOrderSub: { fontSize: 11, color: Brand.gold, fontStyle: 'italic', marginTop: 2 },
+  bcartOrderTag: {
+    backgroundColor: 'rgba(30,58,95,0.10)',
+    borderColor: Brand.navy,
+    borderWidth: 1,
+    borderRadius: 6,
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+  },
+  bcartOrderTagText: { color: Brand.navy, fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
+  bcartOrderSub: { fontSize: 11, color: Brand.navy, fontStyle: 'italic', marginTop: 2 },
 
   karteGrid: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 4 },
   karteItem: { width: '50%', paddingVertical: 6 },

@@ -14,7 +14,7 @@ export type CustomerOrderRow = {
   ordered_at: string;
   total_amount_jpy: number;
   status: 'pending' | 'confirmed' | 'shipped' | 'cancelled';
-  source: 'manual' | 'ec' | 'showroom';
+  source: 'manual' | 'ec' | 'showroom' | 'bcart';
   items: CustomerOrderItem[];
 };
 
@@ -24,7 +24,7 @@ type NestedOrder = {
   ordered_at: string;
   total_amount_jpy: number | null;
   status: 'pending' | 'confirmed' | 'shipped' | 'cancelled';
-  source: 'manual' | 'ec' | 'showroom' | null;
+  source: 'manual' | 'ec' | 'showroom' | 'bcart' | null;
   order_items:
     | {
         quantity: number;

@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 
 import { Screen } from '@/components/ranger/Screen';
 import { Badge } from '@/components/ui/Badge';
@@ -31,7 +31,8 @@ export default function MarginScreen() {
   const { kpis } = useHomeKpis(session);
   const { rows: commissions } = useCommissions(session);
 
-  if (profile?.role === 'admin') {
+  // 管理ガード: Web のみ。iOS/Android では admin もこの画面（個人マージン）を見られるようにする
+  if (profile?.role === 'admin' && Platform.OS === 'web') {
     return (
       <Screen>
         <Text style={styles.title}>マージン</Text>
@@ -72,11 +73,14 @@ export default function MarginScreen() {
   // ── ソース別ブレイクダウン（今月分） ──
   const thisMonthCommissions = commissions.filter(thisMonth);
   const ecThisMonth = thisMonthCommissions.filter((c) => c.source === 'ec');
-  const manualThisMonth = thisMonthCommissions.filter((c) => c.source === 'manual');
+  const bcartThisMonth = thisMonthCommissions.filter((c) => c.source === 'bcart');
+  const manualThisMonth = thisMonthCommissions.filter((c) => c.source === 'manual' || c.source === 'showroom');
   const ecThisMonthJpy = ecThisMonth.reduce((s, c) => s + c.ranger_amount_jpy, 0);
+  const bcartThisMonthJpy = bcartThisMonth.reduce((s, c) => s + c.ranger_amount_jpy, 0);
   const manualThisMonthJpy = manualThisMonth.reduce((s, c) => s + c.ranger_amount_jpy, 0);
-  const totalThisMonthJpy = ecThisMonthJpy + manualThisMonthJpy;
+  const totalThisMonthJpy = ecThisMonthJpy + bcartThisMonthJpy + manualThisMonthJpy;
   const ecSharePct = totalThisMonthJpy > 0 ? ecThisMonthJpy / totalThisMonthJpy : 0;
+  const bcartSharePct = totalThisMonthJpy > 0 ? bcartThisMonthJpy / totalThisMonthJpy : 0;
 
   const monthlyTrend = kpis?.monthlyTrend ?? [];
   const maxTrend = Math.max(...monthlyTrend.map((m) => m.sales), 1);
@@ -151,6 +155,22 @@ export default function MarginScreen() {
 
             <View style={styles.sourceRow}>
               <View style={styles.sourceLeft}>
+                <View style={[styles.sourceDot, { backgroundColor: Brand.navy }]} />
+                <Text style={styles.sourceLabel}>🏢 直接取引（Bカート）</Text>
+              </View>
+              <View style={styles.sourceRight}>
+                <Text style={styles.sourceAmount}>{jpy(bcartThisMonthJpy)}</Text>
+                <Text style={styles.sourceCount}>{bcartThisMonth.length}件</Text>
+              </View>
+            </View>
+            <View style={styles.sourceBar}>
+              <View style={[styles.sourceBarFill, { width: `${Math.round(bcartSharePct * 100)}%`, backgroundColor: Brand.navy }]} />
+            </View>
+
+            <View style={styles.sourceDivider} />
+
+            <View style={styles.sourceRow}>
+              <View style={styles.sourceLeft}>
                 <View style={[styles.sourceDot, { backgroundColor: Ink[600] }]} />
                 <Text style={styles.sourceLabel}>📝 手動入力</Text>
               </View>
@@ -207,6 +227,11 @@ export default function MarginScreen() {
                   {c.source === 'ec' ? (
                     <View style={styles.ecTag}>
                       <Text style={styles.ecTagText}>EC</Text>
+                    </View>
+                  ) : null}
+                  {c.source === 'bcart' ? (
+                    <View style={styles.bcartTag}>
+                      <Text style={styles.bcartTagText}>BC</Text>
                     </View>
                   ) : null}
                 </View>
@@ -281,6 +306,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 5,
   },
   ecTagText: { color: Brand.gold, fontSize: 9, fontWeight: '800', letterSpacing: 0.5 },
+  bcartTag: {
+    backgroundColor: 'rgba(30,58,95,0.10)',
+    borderColor: Brand.navy,
+    borderWidth: 1,
+    borderRadius: 4,
+    paddingVertical: 1,
+    paddingHorizontal: 5,
+  },
+  bcartTagText: { color: Brand.navy, fontSize: 9, fontWeight: '800', letterSpacing: 0.5 },
   orderCust: { fontSize: 11, color: Ink[500], marginTop: 2 },
   orderAmt: { fontSize: 14, fontWeight: '800', color: Ink[900] },
 
