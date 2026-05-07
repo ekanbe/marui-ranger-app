@@ -9,7 +9,9 @@ import { Chip, ChipRow } from '@/components/ui/Chip';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ShimmerList } from '@/components/ui/Shimmer';
 import { Brand, Ink, Radius } from '@/constants/theme';
+import { useAuth } from '@/hooks/use-auth';
 import { type DerivedStatus, deriveStatus, useCustomers } from '@/hooks/use-customers';
+import { useProfile } from '@/hooks/use-profile';
 import { daysSince } from '@/lib/format';
 import { getPhaseLabel, getPhaseTone } from '@/lib/sales-phase';
 
@@ -24,6 +26,9 @@ const STATUS_TONE: Record<DerivedStatus, 'emerald' | 'amber' | 'red'> = {
 
 export default function CustomersScreen() {
   const { customers, loading } = useCustomers();
+  const { session } = useAuth();
+  const { profile } = useProfile(session);
+  const isAdmin = profile?.role === 'admin';
   const [filter, setFilter] = useState<Filter>('all');
   const [bizFilter, setBizFilter] = useState<string>('all');
   const [query, setQuery] = useState('');
@@ -60,8 +65,10 @@ export default function CustomersScreen() {
     <Screen>
       <View style={styles.header}>
         <View>
-          <Text style={styles.title}>担当店舗</Text>
-          <Text style={styles.subtitle}>{enriched.length} 店を担当中</Text>
+          <Text style={styles.title}>{isAdmin ? '全店舗' : '担当店舗'}</Text>
+          <Text style={styles.subtitle}>
+            {isAdmin ? `${enriched.length} 店（全社）` : `${enriched.length} 店を担当中`}
+          </Text>
         </View>
         <Pressable style={styles.addBtn} onPress={() => router.push('/customer-new')}>
           <Text style={styles.addBtnText}>＋</Text>

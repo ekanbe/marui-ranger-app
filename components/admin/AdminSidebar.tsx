@@ -74,24 +74,27 @@ export function AdminSidebar() {
         })}
       </View>
 
-      {/* プロフィール（下部固定） */}
+      {/* プロフィール（下部固定・表示のみ） */}
       <View style={styles.footer}>
-        <Pressable
-          onPress={() => router.push('/profile-edit')}
-          style={({ pressed }) => [styles.profile, pressed && { opacity: 0.85 }]}
-        >
+        <View style={styles.profile}>
           <Avatar name={displayName} imageUrl={profile?.avatar_url} size="sm" />
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={styles.profileName} numberOfLines={1}>{displayName}</Text>
             <Text style={styles.profileEmail} numberOfLines={1}>{email}</Text>
           </View>
           <Badge label={roleLabel(profile?.role)} tone="violet" />
+        </View>
+        <Pressable
+          onPress={() => router.push('/password-change' as any)}
+          style={({ pressed }) => [styles.actionBtn, pressed && { opacity: 0.7 }]}
+        >
+          <Text style={styles.actionText}>🔐 パスワード変更</Text>
         </Pressable>
         <Pressable
           onPress={() => signOut()}
-          style={({ pressed }) => [styles.logoutBtn, pressed && { opacity: 0.7 }]}
+          style={({ pressed }) => [styles.actionBtn, pressed && { opacity: 0.7 }]}
         >
-          <Text style={styles.logoutText}>🚪 ログアウト</Text>
+          <Text style={styles.actionText}>🚪 ログアウト</Text>
         </Pressable>
       </View>
     </View>
@@ -148,8 +151,8 @@ const styles = StyleSheet.create({
   profileName: { color: '#fff', fontSize: 12, fontWeight: '700' },
   profileEmail: { color: 'rgba(255,255,255,0.5)', fontSize: 10, marginTop: 2 },
 
-  logoutBtn: { padding: 10, alignItems: 'center' },
-  logoutText: { color: 'rgba(255,255,255,0.6)', fontSize: 11, fontWeight: '700' },
+  actionBtn: { padding: 10, alignItems: 'center' },
+  actionText: { color: 'rgba(255,255,255,0.6)', fontSize: 11, fontWeight: '700' },
 });
 
 void Ink;
