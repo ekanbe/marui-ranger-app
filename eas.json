@@ -13,6 +13,10 @@
     "preview": {
       "distribution": "internal",
       "channel": "preview",
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://qfcfexexabkvvskqewmq.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_gVB3rFW7pxRW2VmTxxwwkg_NLGkrry2"
+      },
       "ios": {
         "simulator": false,
         "resourceClass": "m-medium"
@@ -24,6 +28,10 @@
     "production": {
       "autoIncrement": true,
       "channel": "production",
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://qfcfexexabkvvskqewmq.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_gVB3rFW7pxRW2VmTxxwwkg_NLGkrry2"
+      },
       "ios": { "resourceClass": "m-medium" }
     }
   },

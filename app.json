@@ -77,7 +77,9 @@
       "router": {},
       "eas": {
         "projectId": "b07a600f-ee19-4fa1-a397-e958478c00b6"
-      }
+      },
+      "supabaseUrl": "https://qfcfexexabkvvskqewmq.supabase.co",
+      "supabaseAnonKey": "sb_publishable_gVB3rFW7pxRW2VmTxxwwkg_NLGkrry2"
     },
     "owner": "ekanbe",
     "runtimeVersion": {

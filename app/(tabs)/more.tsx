@@ -101,11 +101,17 @@ export default function MoreScreen() {
       {/* 設定系 */}
       <Text style={styles.sectionHeader}>設定</Text>
       <View style={{ gap: 10 }}>
-        <View style={[styles.row, styles.disabledRow]}>
-          <View style={styles.iconBox}><Text style={styles.iconText}>⚙️</Text></View>
-          <Text style={styles.rowLabel}>一般設定</Text>
-          <Text style={styles.rowSubSmall}>準備中</Text>
-        </View>
+        <Pressable
+          style={({ pressed }) => [styles.row, pressed && { opacity: 0.85 }]}
+          onPress={() => router.push('/password-change' as any)}
+        >
+          <View style={styles.iconBox}><Text style={styles.iconText}>🔐</Text></View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.rowLabel}>パスワード変更</Text>
+            <Text style={styles.rowSub}>仮パスワードからご自身のものへ</Text>
+          </View>
+          <Text style={styles.arrow}>›</Text>
+        </Pressable>
         <View style={[styles.row, styles.disabledRow]}>
           <View style={styles.iconBox}><Text style={styles.iconText}>❓</Text></View>
           <Text style={styles.rowLabel}>ヘルプ</Text>

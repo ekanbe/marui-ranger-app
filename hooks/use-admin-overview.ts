@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { supabase } from '@/lib/supabase';
+import { SALES_PHASES, type SalesPhase } from '@/lib/sales-phase';
 
 export type AdminOverview = {
   thisMonthSalesJpy: number;
@@ -32,6 +33,14 @@ export type AdminOverview = {
     ranger_number: number;
     is_active_this_month: boolean;
   }>;
+
+  // 営業フェーズ分布（全社）
+  totalAcquired: number;
+  phaseCounts: Array<{
+    key: SalesPhase;
+    label: string;
+    count: number;
+  }>;
 };
 
 export function useAdminOverview() {
@@ -49,7 +58,7 @@ export function useAdminOverview() {
           .order('sales_jpy', { ascending: false }),
         supabase.from('commissions').select('ranger_amount_jpy, status'),
         supabase.from('rangers').select('monthly_goal_jpy, joined_at'),
-        supabase.from('customers').select('id, last_ordered_at, created_at'),
+        supabase.from('customers').select('id, last_ordered_at, created_at, acquired_by_ranger_id, sales_phase'),
         supabase
           .from('orders')
           .select('customer_id, ordered_at')
@@ -104,6 +113,8 @@ export function useAdminOverview() {
         id: string;
         last_ordered_at: string | null;
         created_at: string | null;
+        acquired_by_ranger_id?: string | null;
+        sales_phase?: SalesPhase | null;
       }>;
       const followRequiredCount = customers.filter(
         (c) => !c.last_ordered_at || new Date(c.last_ordered_at) < thirtyDaysAgo
@@ -173,6 +184,15 @@ export function useAdminOverview() {
           return a.ranger_number - b.ranger_number;
         });
 
+      // 営業フェーズ集計（全社・獲得済み顧客のみ）
+      const acquiredCustomers = customers.filter((c) => c.acquired_by_ranger_id);
+      const phaseCounts = SALES_PHASES.map((p) => ({
+        key: p.key as SalesPhase,
+        label: p.label,
+        count: acquiredCustomers.filter((c) => c.sales_phase === p.key).length,
+      }));
+      const totalAcquired = acquiredCustomers.length;
+
       setOverview({
         thisMonthSalesJpy,
         thisMonthOrderCount,
@@ -189,6 +209,8 @@ export function useAdminOverview() {
         totalCommissionPaid,
         pendingApprovalCount,
         rangers: allRangers,
+        totalAcquired,
+        phaseCounts,
       });
       setLoading(false);
     })();

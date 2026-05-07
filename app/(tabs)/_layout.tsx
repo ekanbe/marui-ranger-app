@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { Image, StyleSheet, View } from 'react-native';
+import { Image, Platform, StyleSheet, View } from 'react-native';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { Brand, Colors, Ink } from '@/constants/theme';
@@ -36,7 +36,8 @@ function TabIcon({ name, focused }: { name: IconName; color: string; focused: bo
 export default function TabLayout() {
   const { session } = useAuth();
   const { profile } = useProfile(session);
-  const isAdmin = profile?.role === 'admin';
+  // 管理機能は Web 限定。ネイティブでは admin もタブ上は ranger 扱い。
+  const isAdmin = profile?.role === 'admin' && Platform.OS === 'web';
   const isWide = useIsWide();
   // admin + PC では AdminShell のサイドバーがナビを担うのでタブバー非表示
   const hideTabBar = isAdmin && isWide;

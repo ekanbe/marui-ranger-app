@@ -116,6 +116,36 @@ function AdminDashboard({ displayName, avatarUrl }: { displayName: string; avata
         <Text style={styles.ecSyncArrow}>›</Text>
       </Pressable>
 
+      {/* 獲得顧客のフェーズ別件数（全社） */}
+      {overview.totalAcquired > 0 ? (
+        <>
+          <SectionTitle
+            title="獲得顧客のフェーズ"
+            caption={`全社 ${overview.totalAcquired} 件`}
+            action="顧客一覧 →"
+            onAction={() => router.push('/(tabs)/customers')}
+          />
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.phaseStatsRow}
+            style={{ marginBottom: 18 }}
+          >
+            {overview.phaseCounts.map((p) => (
+              <View
+                key={p.key}
+                style={[styles.phaseStatCard, p.count === 0 && styles.phaseStatCardEmpty]}
+              >
+                <Text style={[styles.phaseStatCount, p.count === 0 && styles.phaseStatCountEmpty]}>
+                  {p.count}
+                </Text>
+                <Text style={styles.phaseStatLabel}>{p.label}</Text>
+              </View>
+            ))}
+          </ScrollView>
+        </>
+      ) : null}
+
       {/* アラートカード 2枚 */}
       <View style={styles.row2}>
         <KpiCard
