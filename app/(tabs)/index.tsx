@@ -22,6 +22,7 @@ import { deriveStatus, useCustomers } from '@/hooks/use-customers';
 import { useHomeKpis } from '@/hooks/use-home-kpis';
 import { useMyRanger } from '@/hooks/use-my-ranger';
 import { useProfile } from '@/hooks/use-profile';
+import { useRanking } from '@/hooks/use-ranking';
 import { useTodayTasks } from '@/hooks/use-today-tasks';
 import { jpy, pct } from '@/lib/format';
 import { homeKpis, rangerProfile } from '@/lib/mockData';
@@ -173,49 +174,64 @@ function AdminDashboard({ displayName, avatarUrl }: { displayName: string; avata
         />
       </View>
 
-      {/* レンジャー TOP3 */}
+      {/* レンジャー月間ランキング（全員） */}
       <SectionTitle
-        title="今月売上 TOP3"
-        caption="全員を見る場合は「レンジャー」タブへ"
-        action="すべて表示 →"
+        title="月間ランキング"
+        caption={`登録 ${overview.rangers.length} 名（うち稼働 ${overview.rangers.filter((r) => r.is_active_this_month).length} 名）`}
+        action="詳細 →"
         onAction={() => router.push('/(tabs)/rangers')}
       />
       <Card variant="surface" padding={0} style={{ overflow: 'hidden' }}>
-        {overview.rangers.slice(0, 3).map((r, i) => (
-          <Pressable
-            key={r.ranger_id}
-            onPress={() => router.push({ pathname: '/ranger/[id]', params: { id: r.ranger_id } })}
-            style={[
-              styles.rangerRow,
-              i === overview.rangers.slice(0, 3).length - 1 && { borderBottomWidth: 0 },
-            ]}
-          >
-            <View style={[styles.trophy, rankBadgeStyle(i)]}>
-              <Text style={[styles.trophyText, rankBadgeTextStyle(i)]}>{i + 1}</Text>
-            </View>
-            <Avatar name={r.display_name} imageUrl={r.avatar_url} size="sm" />
-            <View style={{ flex: 1, marginLeft: 10 }}>
-              <Text style={styles.rangerNumber}>レンジャー{r.ranger_number}号</Text>
-              <Text style={styles.rangerName}>{r.display_name}</Text>
-              <Badge label={rankLabel(r.current_rank)} tone={r.current_rank as any} />
-            </View>
-            <Text style={styles.rangerSales}>{jpy(r.sales_jpy)}</Text>
-          </Pressable>
-        ))}
+        {overview.rangers.map((r, i) => {
+          const medal = !r.is_active_this_month
+            ? '—'
+            : i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`;
+          return (
+            <Pressable
+              key={r.ranger_id}
+              onPress={() => router.push({ pathname: '/ranger/[id]', params: { id: r.ranger_id } })}
+              style={[
+                styles.rangerRow,
+                !r.is_active_this_month && { opacity: 0.6 },
+                i === overview.rangers.length - 1 && { borderBottomWidth: 0 },
+              ]}
+            >
+              <View style={[styles.trophy, rankBadgeStyle(i, r.is_active_this_month)]}>
+                <Text style={[styles.trophyText, rankBadgeTextStyle(i, r.is_active_this_month)]}>
+                  {medal}
+                </Text>
+              </View>
+              <Avatar name={r.display_name} imageUrl={r.avatar_url} size="sm" />
+              <View style={{ flex: 1, marginLeft: 10 }}>
+                <Text style={styles.rangerNumber}>レンジャー{r.ranger_number}号</Text>
+                <Text style={styles.rangerName}>{r.display_name}</Text>
+                <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginTop: 2 }}>
+                  <Badge label={rankLabel(r.current_rank)} tone={r.current_rank as any} />
+                  {!r.is_active_this_month ? <Badge label="今月未稼働" tone="amber" /> : null}
+                </View>
+              </View>
+              <Text style={styles.rangerSales}>{jpy(r.sales_jpy)}</Text>
+            </Pressable>
+          );
+        })}
       </Card>
     </Screen>
   );
 }
 
-function rankBadgeStyle(i: number) {
+function rankBadgeStyle(i: number, isActive = true) {
+  if (!isActive) return { backgroundColor: 'rgba(156,163,175,0.10)' };
   if (i === 0) return { backgroundColor: 'rgba(245,158,11,0.14)' };
   if (i === 1) return { backgroundColor: 'rgba(156,163,175,0.14)' };
-  return { backgroundColor: 'rgba(184,118,74,0.14)' };
+  if (i === 2) return { backgroundColor: 'rgba(184,118,74,0.14)' };
+  return { backgroundColor: 'rgba(30,58,95,0.06)' };
 }
-function rankBadgeTextStyle(i: number) {
+function rankBadgeTextStyle(i: number, isActive = true) {
+  if (!isActive) return { color: '#9CA3AF', fontSize: 12 };
   if (i === 0) return { color: '#B45309' };
   if (i === 1) return { color: '#4B5563' };
-  return { color: '#92400E' };
+  if (i === 2) return { color: '#92400E' };
+  return { color: '#1E3A5F' };
 }
 
 function HeroStat({ label, value }: { label: string; value: string }) {
@@ -263,6 +279,7 @@ export default function HomeScreen() {
   const { tasks: allTasks } = useTodayTasks(session);
   const { ranger: myRanger } = useMyRanger(session);
   const { rows: commissions } = useCommissions(session);
+  const { rows: rankingRows } = useRanking(session);
 
   const followTasks = allTasks.filter((t) => t.task_type === 'follow');
   const showroomTasks = allTasks.filter((t) => t.task_type === 'showroom');
@@ -497,6 +514,64 @@ export default function HomeScreen() {
         </Pressable>
       ) : null}
 
+      {/* 月間ランキング（TOP5 + 圏外なら自分） */}
+      {rankingRows.length > 0 ? (
+        <>
+          <SectionTitle
+            title="月間ランキング"
+            caption={`全 ${rankingRows.length} 名`}
+            action="すべて見る →"
+            onAction={() => router.push('/ranking')}
+          />
+          <Card variant="surface" padding={0} style={{ overflow: 'hidden', marginBottom: 14 }}>
+            {(() => {
+              const top5 = rankingRows.slice(0, 5);
+              const myRow = rankingRows.find((r) => r.isMe);
+              const inTop5 = top5.some((r) => r.isMe);
+              const display = inTop5 || !myRow ? top5 : [...top5, myRow];
+              return display.map((r, i) => {
+                const isInactive = r.sales_jpy === 0;
+                const medal = isInactive
+                  ? '—'
+                  : r.rank === 1 ? '🥇'
+                  : r.rank === 2 ? '🥈'
+                  : r.rank === 3 ? '🥉'
+                  : `#${r.rank}`;
+                const showDivider = !inTop5 && i === top5.length - 1 && myRow && !top5.some((tr) => tr.ranger_id === myRow.ranger_id);
+                return (
+                  <View key={r.ranger_id}>
+                    <View
+                      style={[
+                        styles.rankItemHome,
+                        r.isMe && styles.rankItemHomeMe,
+                        isInactive && { opacity: 0.6 },
+                      ]}
+                    >
+                      <Text style={[styles.rankMedalHome, !isInactive && r.rank <= 3 && { fontSize: 20 }]}>
+                        {medal}
+                      </Text>
+                      <Avatar name={r.display_name} imageUrl={r.avatar_url} size="sm" />
+                      <View style={{ flex: 1, marginLeft: 10 }}>
+                        <Text style={styles.rangerNumber}>レンジャー{r.ranger_number}号</Text>
+                        <Text style={[styles.rangerName, r.isMe && { fontWeight: '900' }]}>
+                          {r.display_name}{r.isMe ? '（あなた）' : ''}
+                        </Text>
+                      </View>
+                      <Text style={styles.rangerSales}>{jpy(r.sales_jpy)}</Text>
+                    </View>
+                    {showDivider ? (
+                      <View style={styles.rankSkip}>
+                        <Text style={styles.rankSkipText}>⋯</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                );
+              });
+            })()}
+          </Card>
+        </>
+      ) : null}
+
       {/* 今日やること */}
       <SectionTitle title="今日やること" caption={`${todayTasks.length} 件`} />
       {todayTasks.length === 0 ? (
@@ -681,6 +756,21 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Ink[100],
   },
+
+  // ランキング行（ホーム画面用）
+  rankItemHome: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: Ink[100],
+  },
+  rankItemHomeMe: { backgroundColor: 'rgba(201,168,118,0.08)' },
+  rankMedalHome: { width: 36, fontSize: 14, fontWeight: '800', color: Ink[700], textAlign: 'center' },
+  rankSkip: { paddingVertical: 4, alignItems: 'center', backgroundColor: '#FAF7F0' },
+  rankSkipText: { color: Ink[400], fontSize: 14, fontWeight: '800' },
 
   // レンジャー用：EC継続収入カード
   ecIncomeCard: {

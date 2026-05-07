@@ -28,7 +28,9 @@ export type AdminOverview = {
     avatar_url: string | null;
     current_rank: string;
     sales_jpy: number;
+    order_count: number;
     ranger_number: number;
+    is_active_this_month: boolean;
   }>;
 };
 
@@ -40,10 +42,10 @@ export function useAdminOverview() {
     let mounted = true;
 
     (async () => {
-      const [rankingRes, commissionsRes, rangersRes, customersRes, allOrdersRes, pendingRes] = await Promise.all([
+      const [rankingRes, commissionsRes, rangersRes, customersRes, allOrdersRes, pendingRes, allRangersRes] = await Promise.all([
         supabase
           .from('v_ranking_this_month')
-          .select('ranger_id, display_name, avatar_url, current_rank, sales_jpy, order_count, ranger_number')
+          .select('ranger_id, sales_jpy, order_count')
           .order('sales_jpy', { ascending: false }),
         supabase.from('commissions').select('ranger_amount_jpy, status'),
         supabase.from('rangers').select('monthly_goal_jpy, joined_at'),
@@ -57,22 +59,33 @@ export function useAdminOverview() {
           .from('orders')
           .select('id', { count: 'exact', head: true })
           .eq('status', 'pending'),
+        // 全レンジャー（受注ゼロ含む）
+        supabase
+          .from('rangers')
+          .select(
+            `id, ranger_code, current_rank,
+             profiles!inner(display_name, avatar_url)`
+          ),
       ]);
 
       if (!mounted) return;
 
       const rankingRows = (rankingRes.data ?? []) as Array<{
         ranger_id: string;
-        display_name: string;
-        avatar_url: string | null;
-        current_rank: string;
         sales_jpy: number | string;
         order_count: number | string;
-        ranger_number: number | string;
       }>;
 
       const thisMonthSalesJpy = rankingRows.reduce((s, r) => s + Number(r.sales_jpy ?? 0), 0);
       const thisMonthOrderCount = rankingRows.reduce((s, r) => s + Number(r.order_count ?? 0), 0);
+
+      const salesMap = new Map<string, { sales_jpy: number; order_count: number }>();
+      for (const r of rankingRows) {
+        salesMap.set(r.ranger_id, {
+          sales_jpy: Number(r.sales_jpy ?? 0),
+          order_count: Number(r.order_count ?? 0),
+        });
+      }
 
       const goals = (rangersRes.data ?? []) as Array<{ monthly_goal_jpy: number | string; joined_at: string | null }>;
       const totalGoalJpy = goals.reduce((s, g) => s + Number(g.monthly_goal_jpy ?? 0), 0);
@@ -128,6 +141,38 @@ export function useAdminOverview() {
 
       const pendingApprovalCount = Number(pendingRes.count ?? 0);
 
+      // 全レンジャー一覧を構築（受注ゼロ含む）
+      const allRangerRows = (allRangersRes.data ?? []) as unknown as Array<{
+        id: string;
+        ranger_code: string | null;
+        current_rank: string | null;
+        profiles:
+          | { display_name: string | null; avatar_url: string | null }
+          | Array<{ display_name: string | null; avatar_url: string | null }>
+          | null;
+      }>;
+      const allRangers = allRangerRows
+        .map((r) => {
+          const code = r.ranger_code ?? '';
+          const numMatch = code.match(/(\d+)/);
+          const profile = Array.isArray(r.profiles) ? r.profiles[0] : r.profiles;
+          const sales = salesMap.get(r.id);
+          return {
+            ranger_id: r.id,
+            display_name: profile?.display_name ?? '（未設定）',
+            avatar_url: profile?.avatar_url ?? null,
+            current_rank: r.current_rank ?? 'BRONZE',
+            sales_jpy: sales?.sales_jpy ?? 0,
+            order_count: sales?.order_count ?? 0,
+            ranger_number: numMatch ? Number(numMatch[1]) : 0,
+            is_active_this_month: !!sales && sales.sales_jpy > 0,
+          };
+        })
+        .sort((a, b) => {
+          if (b.sales_jpy !== a.sales_jpy) return b.sales_jpy - a.sales_jpy;
+          return a.ranger_number - b.ranger_number;
+        });
+
       setOverview({
         thisMonthSalesJpy,
         thisMonthOrderCount,
@@ -139,18 +184,11 @@ export function useAdminOverview() {
         newCustomerFirstOrderCount,
         newRangerThisMonthCount,
         totalCustomers: customers.length,
-        totalRangers: rankingRows.length,
+        totalRangers: allRangers.length,
         totalCommissionPending,
         totalCommissionPaid,
         pendingApprovalCount,
-        rangers: rankingRows.map((r) => ({
-          ranger_id: r.ranger_id,
-          display_name: r.display_name,
-          avatar_url: r.avatar_url,
-          current_rank: r.current_rank,
-          sales_jpy: Number(r.sales_jpy ?? 0),
-          ranger_number: Number(r.ranger_number ?? 0),
-        })),
+        rangers: allRangers,
       });
       setLoading(false);
     })();
