@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Brand, Ink, Radius } from '@/constants/theme';
+import { useIsWide } from '@/hooks/use-is-wide';
 import { supabase } from '@/lib/supabase';
 
 export default function LoginScreen() {
@@ -21,6 +22,7 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const isWide = useIsWide();
 
   async function signIn() {
     setError(null);
@@ -38,7 +40,7 @@ export default function LoginScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.flex}
       >
-        <View style={styles.inner}>
+        <View style={[styles.inner, isWide && styles.innerWide]}>
           {/* ブランドロゴ */}
           <View style={{ marginTop: 40 }}>
             <View style={styles.logoWrap}>
@@ -124,9 +126,18 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Brand.navyDeep },
-  flex: { flex: 1 },
+  flex: { flex: 1, alignItems: 'stretch' },
 
   inner: { flex: 1, padding: 32, justifyContent: 'space-between' },
+  // PC幅では中央寄せ・カード型レイアウト
+  innerWide: {
+    maxWidth: 440,
+    width: '100%',
+    alignSelf: 'center',
+    justifyContent: 'center',
+    paddingVertical: 64,
+    gap: 36,
+  },
 
   logoWrap: {
     width: 96,

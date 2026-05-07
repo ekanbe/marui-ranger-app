@@ -35,7 +35,8 @@ export function Screen({
 
   const bodyStyle = [
     padded ? styles.bodyPadded : styles.body,
-    isAdminPc && styles.bodyAdminPc,
+    // PC幅では中央寄せ・最大幅でレイアウト崩れを防ぐ（admin/ranger 共通）
+    isWide && styles.bodyWide,
     style,
   ];
 
@@ -69,8 +70,8 @@ const styles = StyleSheet.create({
   safe: { flex: 1 },
   body: { paddingBottom: 96 },
   bodyPadded: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 96 },
-  // admin PC: 中央寄せ + max-width + パディングゆったり
-  bodyAdminPc: {
+  // PC幅: 中央寄せ + max-width + パディングゆったり（admin/ranger 共通）
+  bodyWide: {
     paddingHorizontal: 40,
     paddingTop: 32,
     paddingBottom: 64,
