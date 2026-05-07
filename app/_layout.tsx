@@ -2,7 +2,7 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import 'react-native-reanimated';
 
@@ -48,13 +48,13 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // ログイン済みかつ admin かつ 狭い画面 → PC専用画面
-  if (session && profile?.role === 'admin' && !isWide) {
+  // 管理機能は Web 限定。iOS/Android は role によらず ranger UI を出す。
+  const showAdminUI = session && profile?.role === 'admin' && Platform.OS === 'web';
+
+  if (showAdminUI && !isWide) {
     return <PcOnlyScreen />;
   }
-
-  // ログイン済みかつ admin かつ 広い画面 → AdminShell でラップ
-  if (session && profile?.role === 'admin' && isWide) {
+  if (showAdminUI && isWide) {
     return <AdminShell>{children}</AdminShell>;
   }
 
@@ -80,6 +80,7 @@ export default function RootLayout() {
             <Stack.Screen name="ranger/[id]" />
             <Stack.Screen name="ranger-new" />
             <Stack.Screen name="ranger-edit/[id]" />
+            <Stack.Screen name="admin" />
             <Stack.Screen name="approvals" />
             <Stack.Screen name="admin-ec-sync" />
             <Stack.Screen name="admin-showroom" />
