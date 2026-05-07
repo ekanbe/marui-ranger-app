@@ -53,34 +53,46 @@ export default function RankingScreen() {
       </View>
 
       {/* ランキング */}
-      <SectionTitle title="月間ランキング" caption={`全 ${rows.length} 名`} />
+      <SectionTitle
+        title="月間ランキング"
+        caption={`全 ${rows.length} 名（うち稼働 ${rows.filter((r) => r.sales_jpy > 0).length} 名）`}
+      />
       {loading ? (
         <ShimmerList count={5} />
       ) : (
         <Card variant="surface" padding={0} style={{ overflow: 'hidden' }}>
           {rows.map((r, i) => {
-            const medal = r.rank === 1 ? '🥇' : r.rank === 2 ? '🥈' : r.rank === 3 ? '🥉' : `#${r.rank}`;
+            const isInactive = r.sales_jpy === 0;
+            const medal = isInactive
+              ? '—'
+              : r.rank === 1 ? '🥇' : r.rank === 2 ? '🥈' : r.rank === 3 ? '🥉' : `#${r.rank}`;
             return (
               <View
                 key={r.ranger_id}
                 style={[
                   styles.rankItem,
                   r.isMe && styles.rankItemMe,
+                  isInactive && styles.rankItemInactive,
                   i === rows.length - 1 && { borderBottomWidth: 0 },
                 ]}
               >
-                <Text style={[styles.rankMedal, r.rank <= 3 && { fontSize: 22 }]}>{medal}</Text>
+                <Text style={[
+                  styles.rankMedal,
+                  !isInactive && r.rank <= 3 && { fontSize: 22 },
+                  isInactive && styles.rankMedalInactive,
+                ]}>{medal}</Text>
                 <Avatar name={r.display_name} imageUrl={r.avatar_url} size="sm" />
                 <View style={{ flex: 1, marginLeft: 10 }}>
                   <Text style={styles.rankerNumber}>レンジャー{r.ranger_number}号</Text>
                   <Text style={[styles.rankName, r.isMe && { fontWeight: '900', color: Ink[900] }]}>
                     {r.display_name}{r.isMe ? ' (あなた)' : ''}
                   </Text>
-                  <View style={{ marginTop: 4 }}>
+                  <View style={{ marginTop: 4, flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
                     <Badge label={rankLabel(r.current_rank)} tone={r.current_rank as any} />
+                    {isInactive ? <Badge label="今月未稼働" tone="amber" /> : null}
                   </View>
                 </View>
-                <Text style={styles.rankScore}>{jpy(r.sales_jpy)}</Text>
+                <Text style={[styles.rankScore, isInactive && { color: Ink[400] }]}>{jpy(r.sales_jpy)}</Text>
               </View>
             );
           })}
@@ -130,7 +142,9 @@ const styles = StyleSheet.create({
     borderBottomColor: Ink[100],
   },
   rankItemMe: { backgroundColor: 'rgba(30,58,95,0.04)' },
+  rankItemInactive: { opacity: 0.65 },
   rankMedal: { width: 38, fontSize: 15, fontWeight: '800', color: Ink[700], textAlign: 'center' },
+  rankMedalInactive: { color: Ink[400], fontSize: 13 },
   rankerNumber: { fontSize: 9, color: Ink[500], fontWeight: '800', letterSpacing: 1, marginBottom: 2 },
   rankName: { fontSize: 13, fontWeight: '700', color: Ink[900] },
   rankScore: { fontSize: 13, fontWeight: '800', color: Ink[900] },
