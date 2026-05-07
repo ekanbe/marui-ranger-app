@@ -486,8 +486,14 @@ export default function HomeScreen() {
             {phaseCounts.map((p) => (
               <Pressable
                 key={p.key}
-                onPress={() => router.push('/(tabs)/customers')}
-                style={[styles.phaseStatCard, p.count === 0 && styles.phaseStatCardEmpty]}
+                onPress={() =>
+                  router.push({ pathname: '/(tabs)/customers', params: { phase: p.key } })
+                }
+                style={({ pressed }) => [
+                  styles.phaseStatCard,
+                  p.count === 0 && styles.phaseStatCardEmpty,
+                  pressed && { opacity: 0.7 },
+                ]}
               >
                 <Text style={[styles.phaseStatCount, p.count === 0 && styles.phaseStatCountEmpty]}>
                   {p.count}
