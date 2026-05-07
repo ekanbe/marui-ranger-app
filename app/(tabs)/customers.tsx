@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
-import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Screen } from '@/components/ranger/Screen';
@@ -13,7 +13,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { type DerivedStatus, deriveStatus, useCustomers } from '@/hooks/use-customers';
 import { useProfile } from '@/hooks/use-profile';
 import { daysSince } from '@/lib/format';
-import { getPhaseLabel, getPhaseTone } from '@/lib/sales-phase';
+import { getPhaseLabel, getPhaseTone, SALES_PHASES, type SalesPhase } from '@/lib/sales-phase';
 
 type Filter = 'all' | DerivedStatus;
 
@@ -29,9 +29,18 @@ export default function CustomersScreen() {
   const { session } = useAuth();
   const { profile } = useProfile(session);
   const isAdmin = profile?.role === 'admin';
+  const params = useLocalSearchParams<{ phase?: string }>();
   const [filter, setFilter] = useState<Filter>('all');
   const [bizFilter, setBizFilter] = useState<string>('all');
+  const [phaseFilter, setPhaseFilter] = useState<SalesPhase | null>(null);
   const [query, setQuery] = useState('');
+
+  // ホームの「獲得顧客のフェーズ」バッジから飛んできたとき、初期フェーズを反映
+  useEffect(() => {
+    if (params.phase && SALES_PHASES.some((p) => p.key === params.phase)) {
+      setPhaseFilter(params.phase as SalesPhase);
+    }
+  }, [params.phase]);
 
   const enriched = useMemo(
     () => customers.map((c) => ({ ...c, derivedStatus: deriveStatus(c.last_ordered_at) })),
@@ -58,6 +67,7 @@ export default function CustomersScreen() {
     (c) =>
       (filter === 'all' || c.derivedStatus === filter) &&
       (bizFilter === 'all' || c.business_type === bizFilter) &&
+      (phaseFilter === null || c.sales_phase === phaseFilter) &&
       (query === '' || `${c.name}${c.branch_name ?? ''}${c.address ?? ''}`.includes(query))
   );
 
@@ -74,6 +84,20 @@ export default function CustomersScreen() {
           <Text style={styles.addBtnText}>＋</Text>
         </Pressable>
       </View>
+
+      {/* フェーズフィルタ適用中のバナー */}
+      {phaseFilter ? (
+        <Pressable onPress={() => setPhaseFilter(null)} style={styles.phaseBanner}>
+          <Text style={styles.phaseBannerIcon}>🎯</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.phaseBannerTitle}>
+              「{getPhaseLabel(phaseFilter)}」フェーズで絞り込み中
+            </Text>
+            <Text style={styles.phaseBannerSub}>{list.length} 件 ／ タップで解除</Text>
+          </View>
+          <Text style={styles.phaseBannerClose}>✕</Text>
+        </Pressable>
+      ) : null}
 
       {/* 検索バー */}
       <View style={styles.searchRow}>
@@ -218,6 +242,22 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     marginBottom: 14,
   },
+  phaseBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: 'rgba(201,168,118,0.12)',
+    borderWidth: 1,
+    borderColor: Brand.gold,
+    borderRadius: Radius.md,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 12,
+  },
+  phaseBannerIcon: { fontSize: 18 },
+  phaseBannerTitle: { fontSize: 13, fontWeight: '800', color: Brand.navy },
+  phaseBannerSub: { fontSize: 11, color: Ink[600], marginTop: 2 },
+  phaseBannerClose: { fontSize: 16, color: Brand.navy, fontWeight: '700', paddingHorizontal: 4 },
   searchIcon: { fontSize: 14 },
   searchInput: { flex: 1, fontSize: 14, color: Ink[900], padding: 0 },
   clearIcon: { fontSize: 14, color: Ink[400], paddingHorizontal: 4 },
