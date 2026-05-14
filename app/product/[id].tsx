@@ -54,8 +54,63 @@ export default function ProductDetailScreen() {
         <View style={{ flexDirection: 'row', gap: 6, marginTop: 6, justifyContent: 'center' }}>
           {detail.category ? <Badge label={detail.category} tone="navy" size="md" /> : null}
         </View>
-        <Text style={styles.price}>{jpy(detail.unit_price_jpy)}</Text>
+        {detail.bcart_sets.length === 0 && detail.unit_price_jpy > 0 ? (
+          <Text style={styles.price}>{jpy(detail.unit_price_jpy)}</Text>
+        ) : null}
       </View>
+
+      {/* Bカート BtoB価格（販売単位ごと） */}
+      {detail.bcart_sets.length > 0 ? (
+        <>
+          <SectionTitle
+            title="🏢 Bカート BtoB価格"
+            caption="見積・受注で使う実価格"
+            style={{ marginTop: 4 }}
+          />
+          {detail.bcart_sets.map((set) => (
+            <View key={set.id} style={styles.bcartSetCard}>
+              <View style={styles.bcartSetHead}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.bcartSetName}>{set.name ?? '販売単位'}</Text>
+                  {set.product_no ? (
+                    <Text style={styles.bcartSetMeta}>商品番号 {set.product_no}</Text>
+                  ) : null}
+                </View>
+                {set.unit_price != null ? (
+                  <Text style={styles.bcartSetPrice}>{jpy(set.unit_price)}</Text>
+                ) : null}
+              </View>
+
+              {set.group_prices.length > 0 ? (
+                <View style={styles.bcartGroupList}>
+                  <Text style={styles.bcartGroupLabel}>価格グループ別</Text>
+                  {set.group_prices.map((g) => (
+                    <View key={g.price_group_id} style={styles.bcartGroupRow}>
+                      <Text style={styles.bcartGroupName}>{g.name}</Text>
+                      <Text style={styles.bcartGroupPrice}>{jpy(g.unit_price)}</Text>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+
+              {set.special_price_count > 0 ? (
+                <View style={styles.bcartSpecialBox}>
+                  <Text style={styles.bcartSpecialLabel}>
+                    🎯 特別単価あり ({set.special_price_count} 顧客)
+                  </Text>
+                  <Text style={styles.bcartSpecialHint}>
+                    価格交渉の結果が登録済み。顧客詳細で確認できます。
+                  </Text>
+                </View>
+              ) : null}
+
+              {set.stock != null ? (
+                <Text style={styles.bcartStock}>在庫: {set.stock}</Text>
+              ) : null}
+            </View>
+          ))}
+        </>
+      ) : null}
 
       {/* 悲鳴 */}
       {detail.pain_solution ? (
@@ -138,6 +193,61 @@ const styles = StyleSheet.create({
   maker: { fontSize: 11, color: Ink[500], fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase' },
   name: { fontSize: 20, fontWeight: '800', color: Ink[900], textAlign: 'center', marginTop: 4, letterSpacing: -0.3 },
   price: { fontSize: 26, fontWeight: '900', color: Ink[900], marginTop: 12, letterSpacing: -0.5 },
+
+  // Bカート 販売単位カード
+  bcartSetCard: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: Ink[100],
+    borderRadius: Radius.md,
+    padding: 14,
+    marginBottom: 12,
+  },
+  bcartSetHead: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  bcartSetName: { fontSize: 14, fontWeight: '800', color: Ink[900] },
+  bcartSetMeta: {
+    fontSize: 11,
+    color: Ink[500],
+    marginTop: 2,
+    fontFamily: 'monospace',
+  },
+  bcartSetPrice: { fontSize: 20, fontWeight: '900', color: Brand.gold },
+
+  bcartGroupList: {
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: Ink[100],
+    gap: 4,
+  },
+  bcartGroupLabel: {
+    fontSize: 10,
+    color: Ink[500],
+    fontWeight: '700',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginBottom: 4,
+  },
+  bcartGroupRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  bcartGroupName: { fontSize: 12, color: Ink[700] },
+  bcartGroupPrice: { fontSize: 13, fontWeight: '700', color: Ink[900] },
+
+  bcartSpecialBox: {
+    marginTop: 10,
+    padding: 10,
+    backgroundColor: 'rgba(201,168,118,0.08)',
+    borderRadius: Radius.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(201,168,118,0.25)',
+  },
+  bcartSpecialLabel: { fontSize: 12, fontWeight: '800', color: Brand.navy },
+  bcartSpecialHint: { fontSize: 10, color: Ink[600], marginTop: 4 },
+  bcartStock: { fontSize: 10, color: Ink[500], marginTop: 8, textAlign: 'right' },
 
   painBox: {
     backgroundColor: 'rgba(239,68,68,0.05)',

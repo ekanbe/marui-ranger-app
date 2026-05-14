@@ -9,6 +9,25 @@ export type RecommendedCustomer = {
   score: number;
 };
 
+export type BcartGroupPrice = {
+  price_group_id: string;
+  name: string;
+  unit_price: number;
+  rate: string;
+};
+
+export type BcartProductSet = {
+  id: string;
+  bcart_product_set_id: string;
+  name: string | null;
+  product_no: string | null;
+  unit_price: number | null;
+  group_prices: BcartGroupPrice[];
+  special_price_count: number;     // 特別単価が登録されている顧客数
+  stock: number | null;
+  jan_code: string | null;
+};
+
 export type ProductDetail = {
   id: string;
   name: string;
@@ -20,6 +39,7 @@ export type ProductDetail = {
   unit_price_jpy: number;
   solves_pain: string[];
   recommended_customers: RecommendedCustomer[];
+  bcart_sets: BcartProductSet[];   // Bカート 販売単位（複数あり得る）
 };
 
 const PAIN_LABEL: Record<string, string> = {
@@ -63,7 +83,7 @@ export function useProductDetail(productId: string | undefined) {
     let mounted = true;
 
     (async () => {
-      const [prodRes, recsRes] = await Promise.all([
+      const [prodRes, recsRes, setsRes] = await Promise.all([
         supabase
           .from('products')
           .select(
@@ -80,11 +100,19 @@ export function useProductDetail(productId: string | undefined) {
           .eq('product_id', productId)
           .order('score', { ascending: false })
           .limit(10),
+        supabase
+          .from('product_sets')
+          .select(
+            'id, bcart_product_set_id, name, product_no, unit_price, group_price, special_price, stock, jan_code',
+          )
+          .eq('product_id', productId)
+          .order('unit_price', { ascending: true }),
       ]);
 
       if (!mounted) return;
       if (prodRes.error) console.warn('[useProductDetail product]', prodRes.error.message);
       if (recsRes.error) console.warn('[useProductDetail recs]', recsRes.error.message);
+      if (setsRes.error) console.warn('[useProductDetail sets]', setsRes.error.message);
 
       const p = prodRes.data as unknown as NestedProduct | null;
       if (!p) {
@@ -112,6 +140,38 @@ export function useProductDetail(productId: string | undefined) {
           score: Number(r.score ?? 0),
         }));
 
+      // Bカート 販売単位
+      type RawSet = {
+        id: string;
+        bcart_product_set_id: string;
+        name: string | null;
+        product_no: string | null;
+        unit_price: number | null;
+        group_price: Record<string, { name: string; rate: string; unit_price: number }> | null;
+        special_price: Record<string, unknown> | null;
+        stock: number | null;
+        jan_code: string | null;
+      };
+      const rawSets = (setsRes.data ?? []) as RawSet[];
+      const bcartSets = rawSets.map((s) => ({
+        id: s.id,
+        bcart_product_set_id: s.bcart_product_set_id,
+        name: s.name,
+        product_no: s.product_no,
+        unit_price: s.unit_price,
+        group_prices: s.group_price
+          ? Object.entries(s.group_price).map(([k, v]) => ({
+              price_group_id: k,
+              name: v.name,
+              unit_price: Number(v.unit_price),
+              rate: v.rate,
+            }))
+          : [],
+        special_price_count: s.special_price ? Object.keys(s.special_price).length : 0,
+        stock: s.stock,
+        jan_code: s.jan_code,
+      }));
+
       setDetail({
         id: p.id,
         name: p.name,
@@ -123,6 +183,7 @@ export function useProductDetail(productId: string | undefined) {
         unit_price_jpy: Number(active?.unit_price_jpy ?? 0),
         solves_pain: solvesPain,
         recommended_customers: recommended,
+        bcart_sets: bcartSets,
       });
       setLoading(false);
     })();
