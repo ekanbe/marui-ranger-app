@@ -11,11 +11,13 @@ import { ShimmerList } from '@/components/ui/Shimmer';
 import { Brand, Ink, Radius } from '@/constants/theme';
 import { useAuth } from '@/hooks/use-auth';
 import { type DerivedStatus, deriveStatus, useCustomers } from '@/hooks/use-customers';
+import { type DormancyLevel, useDormantCustomers } from '@/hooks/use-dormant-customers';
 import { useProfile } from '@/hooks/use-profile';
 import { daysSince } from '@/lib/format';
 import { getPhaseLabel, getPhaseTone, SALES_PHASES, type SalesPhase } from '@/lib/sales-phase';
 
 type Filter = 'all' | DerivedStatus;
+type DormancyFilter = null | 'all' | 'warning' | 'danger' | 'critical';
 
 const STATUS_LABEL: Record<DerivedStatus, string> = { good: '好調', stall: '停滞', follow: '要フォロー' };
 const STATUS_TONE: Record<DerivedStatus, 'emerald' | 'amber' | 'red'> = {
@@ -24,16 +26,35 @@ const STATUS_TONE: Record<DerivedStatus, 'emerald' | 'amber' | 'red'> = {
   follow: 'red',
 };
 
+const DORMANCY_LABEL: Record<Exclude<DormancyFilter, null>, string> = {
+  all: '要フォロー（30日以上未発注）',
+  warning: '🟡 30日〜60日未発注',
+  danger: '🟠 60日〜90日未発注',
+  critical: '🔴 90日以上未発注',
+};
+
 export default function CustomersScreen() {
   const { customers, loading } = useCustomers();
   const { session } = useAuth();
   const { profile } = useProfile(session);
   const isAdmin = profile?.role === 'admin';
-  const params = useLocalSearchParams<{ phase?: string }>();
+  const params = useLocalSearchParams<{ phase?: string; dormancy?: string }>();
   const [filter, setFilter] = useState<Filter>('all');
   const [bizFilter, setBizFilter] = useState<string>('all');
   const [phaseFilter, setPhaseFilter] = useState<SalesPhase | null>(null);
+  const [dormancyFilter, setDormancyFilter] = useState<DormancyFilter>(null);
   const [query, setQuery] = useState('');
+
+  // 取引断絶検知（DEVICE A）— 担当範囲の全顧客（includeAll で active も含めて取得）
+  const { customers: dormantRows } = useDormantCustomers(
+    { rangerId: session?.user.id ?? null, isAdmin },
+    { includeAll: true },
+  );
+  const dormancyMap = useMemo(() => {
+    const m = new Map<string, DormancyLevel>();
+    for (const r of dormantRows) m.set(r.customer_id, r.dormancy_level);
+    return m;
+  }, [dormantRows]);
 
   // ホームの「獲得顧客のフェーズ」バッジから飛んできたとき、初期フェーズを反映
   useEffect(() => {
@@ -41,6 +62,21 @@ export default function CustomersScreen() {
       setPhaseFilter(params.phase as SalesPhase);
     }
   }, [params.phase]);
+
+  // 取引断絶検知バッジから飛んできたとき、初期 dormancy フィルタを反映
+  useEffect(() => {
+    if (params.dormancy && ['all', 'warning', 'danger', 'critical'].includes(params.dormancy)) {
+      setDormancyFilter(params.dormancy as Exclude<DormancyFilter, null>);
+    }
+  }, [params.dormancy]);
+
+  function matchesDormancy(customerId: string): boolean {
+    if (dormancyFilter === null) return true;
+    const lv = dormancyMap.get(customerId);
+    if (!lv) return false;
+    if (dormancyFilter === 'all') return lv === 'warning' || lv === 'danger' || lv === 'critical';
+    return lv === dormancyFilter;
+  }
 
   const enriched = useMemo(
     () => customers.map((c) => ({ ...c, derivedStatus: deriveStatus(c.last_ordered_at) })),
@@ -68,6 +104,7 @@ export default function CustomersScreen() {
       (filter === 'all' || c.derivedStatus === filter) &&
       (bizFilter === 'all' || c.business_type === bizFilter) &&
       (phaseFilter === null || c.sales_phase === phaseFilter) &&
+      matchesDormancy(c.id) &&
       (query === '' || `${c.name}${c.branch_name ?? ''}${c.address ?? ''}`.includes(query))
   );
 
@@ -96,6 +133,20 @@ export default function CustomersScreen() {
             <Text style={styles.phaseBannerSub}>{list.length} 件 ／ タップで解除</Text>
           </View>
           <Text style={styles.phaseBannerClose}>✕</Text>
+        </Pressable>
+      ) : null}
+
+      {/* 取引断絶検知フィルタ適用中のバナー */}
+      {dormancyFilter ? (
+        <Pressable onPress={() => setDormancyFilter(null)} style={styles.dormancyBanner}>
+          <Text style={styles.dormancyBannerIcon}>🚨</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.dormancyBannerTitle}>
+              {DORMANCY_LABEL[dormancyFilter]}で絞り込み中
+            </Text>
+            <Text style={styles.dormancyBannerSub}>{list.length} 件 ／ タップで解除</Text>
+          </View>
+          <Text style={styles.dormancyBannerClose}>✕</Text>
         </Pressable>
       ) : null}
 
@@ -258,6 +309,23 @@ const styles = StyleSheet.create({
   phaseBannerTitle: { fontSize: 13, fontWeight: '800', color: Brand.navy },
   phaseBannerSub: { fontSize: 11, color: Ink[600], marginTop: 2 },
   phaseBannerClose: { fontSize: 16, color: Brand.navy, fontWeight: '700', paddingHorizontal: 4 },
+
+  dormancyBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: 'rgba(220,38,38,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(220,38,38,0.25)',
+    borderRadius: Radius.md,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 12,
+  },
+  dormancyBannerIcon: { fontSize: 18 },
+  dormancyBannerTitle: { fontSize: 13, fontWeight: '800', color: '#991B1B' },
+  dormancyBannerSub: { fontSize: 11, color: '#7F1D1D', marginTop: 2 },
+  dormancyBannerClose: { fontSize: 16, color: '#991B1B', fontWeight: '700', paddingHorizontal: 4 },
   searchIcon: { fontSize: 14 },
   searchInput: { flex: 1, fontSize: 14, color: Ink[900], padding: 0 },
   clearIcon: { fontSize: 14, color: Ink[400], paddingHorizontal: 4 },

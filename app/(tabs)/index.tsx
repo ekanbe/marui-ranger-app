@@ -19,6 +19,7 @@ import { useAdminOverview } from '@/hooks/use-admin-overview';
 import { useAuth } from '@/hooks/use-auth';
 import { useCommissions } from '@/hooks/use-commissions';
 import { deriveStatus, useCustomers } from '@/hooks/use-customers';
+import { useDormantCustomers } from '@/hooks/use-dormant-customers';
 import { useHomeKpis } from '@/hooks/use-home-kpis';
 import { useMyRanger } from '@/hooks/use-my-ranger';
 import { useProfile } from '@/hooks/use-profile';
@@ -33,6 +34,7 @@ import { SALES_PHASES } from '@/lib/sales-phase';
 // ============================================================
 function AdminDashboard({ displayName, avatarUrl }: { displayName: string; avatarUrl?: string | null }) {
   const { overview, loading } = useAdminOverview();
+  const { summary: dormancy } = useDormantCustomers({ rangerId: null, isAdmin: true });
 
   if (loading || !overview) {
     return (
@@ -185,6 +187,61 @@ function AdminDashboard({ displayName, avatarUrl }: { displayName: string; avata
         />
       </View>
 
+      {/* 取引断絶検知（DEVICE A）— 3段階 */}
+      {dormancy.total > 0 ? (
+        <>
+          <SectionTitle
+            title="🚨 取引断絶検知"
+            caption={`全社 ${dormancy.total} 社が要フォロー`}
+            style={{ marginTop: 10 }}
+          />
+          <View style={styles.row3}>
+            <Pressable
+              onPress={() =>
+                router.push({ pathname: '/(tabs)/customers', params: { dormancy: 'warning' } })
+              }
+              style={({ pressed }) => [{ flex: 1 }, pressed && { opacity: 0.7 }]}
+            >
+              <KpiCard
+                label="🟡 30日〜"
+                value={`${dormancy.warning}`}
+                unit="社"
+                tone={dormancy.warning > 0 ? 'amber' : 'ink'}
+                delta="黄信号"
+              />
+            </Pressable>
+            <Pressable
+              onPress={() =>
+                router.push({ pathname: '/(tabs)/customers', params: { dormancy: 'danger' } })
+              }
+              style={({ pressed }) => [{ flex: 1 }, pressed && { opacity: 0.7 }]}
+            >
+              <KpiCard
+                label="🟠 60日〜"
+                value={`${dormancy.danger}`}
+                unit="社"
+                tone={dormancy.danger > 0 ? 'amber' : 'ink'}
+                delta="オレンジ"
+              />
+            </Pressable>
+            <Pressable
+              onPress={() =>
+                router.push({ pathname: '/(tabs)/customers', params: { dormancy: 'critical' } })
+              }
+              style={({ pressed }) => [{ flex: 1 }, pressed && { opacity: 0.7 }]}
+            >
+              <KpiCard
+                label="🔴 90日〜"
+                value={`${dormancy.critical}`}
+                unit="社"
+                tone={dormancy.critical > 0 ? 'red' : 'ink'}
+                delta="赤信号"
+              />
+            </Pressable>
+          </View>
+        </>
+      ) : null}
+
       {/* 新規指標 */}
       <View style={styles.row2}>
         <KpiCard
@@ -329,6 +386,10 @@ export default function HomeScreen() {
   const { ranger: myRanger } = useMyRanger(session);
   const { rows: commissions } = useCommissions(session);
   const { rows: rankingRows } = useRanking(session);
+  const { summary: dormancy } = useDormantCustomers({
+    rangerId: session?.user.id ?? null,
+    isAdmin: false,
+  });
 
   const followTasks = allTasks.filter((t) => t.task_type === 'follow');
   const showroomTasks = allTasks.filter((t) => t.task_type === 'showroom');
@@ -448,6 +509,30 @@ export default function HomeScreen() {
           onPress={() => router.push('/ranking')}
         />
       </ScrollView>
+
+      {/* 取引断絶検知（DEVICE A）— 警告がある時のみ表示 */}
+      {dormancy.total > 0 ? (
+        <Pressable
+          onPress={() =>
+            router.push({ pathname: '/(tabs)/customers', params: { dormancy: 'all' } })
+          }
+          style={({ pressed }) => [styles.dormantBanner, pressed && { opacity: 0.85 }]}
+        >
+          <View style={{ flex: 1 }}>
+            <Text style={styles.dormantTitle}>🚨 要フォローの担当顧客</Text>
+            <Text style={styles.dormantSub}>
+              {dormancy.warning > 0 ? `🟡 ${dormancy.warning}社 ` : ''}
+              {dormancy.danger > 0 ? `🟠 ${dormancy.danger}社 ` : ''}
+              {dormancy.critical > 0 ? `🔴 ${dormancy.critical}社` : ''}
+            </Text>
+          </View>
+          <View style={styles.dormantCountBox}>
+            <Text style={styles.dormantCount}>{dormancy.total}</Text>
+            <Text style={styles.dormantUnit}>社</Text>
+          </View>
+          <Text style={styles.dormantArrow}>›</Text>
+        </Pressable>
+      ) : null}
 
       {/* KPI 2x2 */}
       <View style={styles.grid}>
@@ -761,6 +846,26 @@ const styles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 16 },
   gridItem: { width: '48%', flexGrow: 1 },
   row2: { flexDirection: 'row', gap: 10, marginBottom: 10 },
+  row3: { flexDirection: 'row', gap: 8, marginBottom: 10 },
+
+  // 取引断絶検知バナー（ranger ホーム）
+  dormantBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: 'rgba(220,38,38,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(220,38,38,0.18)',
+    borderRadius: Radius.md,
+    padding: 14,
+    marginBottom: 14,
+  },
+  dormantTitle: { fontSize: 13, fontWeight: '800', color: '#991B1B' },
+  dormantSub: { fontSize: 11, color: '#7F1D1D', marginTop: 3 },
+  dormantCountBox: { alignItems: 'flex-end' },
+  dormantCount: { fontSize: 22, fontWeight: '900', color: '#991B1B' },
+  dormantUnit: { fontSize: 10, color: '#991B1B' },
+  dormantArrow: { fontSize: 18, color: '#991B1B', fontWeight: '700' },
 
   // Today tasks
   taskIcon: {
