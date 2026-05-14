@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Screen } from '@/components/ranger/Screen';
 import { Badge } from '@/components/ui/Badge';
@@ -58,6 +58,23 @@ export default function ProductDetailScreen() {
           <Text style={styles.price}>{jpy(detail.unit_price_jpy)}</Text>
         ) : null}
       </View>
+
+      {/* 価格交渉ボタン（見積依頼起票） */}
+      {detail.bcart_sets.length > 0 ? (
+        <Pressable
+          onPress={() =>
+            router.push({ pathname: '/quote-request-new' as any, params: { product_id: detail.id } })
+          }
+          style={({ pressed }) => [styles.quoteBtn, pressed && { opacity: 0.85 }]}
+        >
+          <Text style={styles.quoteBtnIcon}>📝</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.quoteBtnTitle}>価格交渉する</Text>
+            <Text style={styles.quoteBtnSub}>顧客に特別価格を出したい時の見積依頼</Text>
+          </View>
+          <Text style={styles.quoteBtnArrow}>›</Text>
+        </Pressable>
+      ) : null}
 
       {/* Bカート BtoB価格（販売単位ごと） */}
       {detail.bcart_sets.length > 0 ? (
@@ -248,6 +265,21 @@ const styles = StyleSheet.create({
   bcartSpecialLabel: { fontSize: 12, fontWeight: '800', color: Brand.navy },
   bcartSpecialHint: { fontSize: 10, color: Ink[600], marginTop: 4 },
   bcartStock: { fontSize: 10, color: Ink[500], marginTop: 8, textAlign: 'right' },
+
+  // 価格交渉ボタン
+  quoteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: Brand.navy,
+    borderRadius: Radius.md,
+    padding: 16,
+    marginBottom: 14,
+  },
+  quoteBtnIcon: { fontSize: 22 },
+  quoteBtnTitle: { fontSize: 14, fontWeight: '800', color: '#fff' },
+  quoteBtnSub: { fontSize: 11, color: 'rgba(255,255,255,0.75)', marginTop: 2 },
+  quoteBtnArrow: { fontSize: 22, color: '#fff', fontWeight: '700' },
 
   painBox: {
     backgroundColor: 'rgba(239,68,68,0.05)',

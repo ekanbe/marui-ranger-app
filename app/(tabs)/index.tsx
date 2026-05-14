@@ -118,6 +118,18 @@ function AdminDashboard({ displayName, avatarUrl }: { displayName: string; avata
         <Text style={styles.ecSyncArrow}>›</Text>
       </Pressable>
 
+      {/* 見積依頼管理（管理者エントリ） */}
+      <Pressable onPress={() => router.push('/admin-quote-requests' as any)} style={styles.ecSyncRow}>
+        <View style={styles.ecSyncIconBox}>
+          <Text style={styles.ecSyncIcon}>📝</Text>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.ecSyncTitle}>見積依頼管理</Text>
+          <Text style={styles.ecSyncSub}>レンジャー起票の価格交渉案件 ／ 承認・Bカート登録管理</Text>
+        </View>
+        <Text style={styles.ecSyncArrow}>›</Text>
+      </Pressable>
+
       {/* ショールーム予約管理（管理者エントリ） */}
       <Pressable onPress={() => router.push('/admin-showroom')} style={styles.ecSyncRow}>
         <View style={styles.ecSyncIconBox}>
