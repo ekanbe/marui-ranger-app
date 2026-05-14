@@ -45,8 +45,7 @@ export function useQuoteRequests(scope: Scope) {
            quantity, standard_price_jpy, requested_price_jpy, reason,
            status, admin_note, approved_at, bcart_estimate_id, bcart_estimate_code, created_at,
            customers ( name ),
-           products ( name ),
-           ranger_profile:profiles!quote_requests_ranger_id_fkey ( display_name )`,
+           products ( name )`,
         )
         .order('created_at', { ascending: false });
 
@@ -75,15 +74,29 @@ export function useQuoteRequests(scope: Scope) {
         created_at: string;
         customers: { name: string } | null;
         products: { name: string } | null;
-        ranger_profile: { display_name: string } | null;
       };
 
-      const mapped: QuoteRequest[] = ((data ?? []) as unknown as Raw[]).map((r) => ({
+      const rawList = (data ?? []) as unknown as Raw[];
+
+      // ranger 名を別 SELECT で取得して付与
+      const rangerIds = Array.from(new Set(rawList.map((r) => r.ranger_id)));
+      const rangerNameMap = new Map<string, string>();
+      if (rangerIds.length > 0) {
+        const { data: profs } = await supabase
+          .from('profiles')
+          .select('id, display_name')
+          .in('id', rangerIds);
+        for (const p of (profs ?? []) as { id: string; display_name: string | null }[]) {
+          if (p.display_name) rangerNameMap.set(p.id, p.display_name);
+        }
+      }
+
+      const mapped: QuoteRequest[] = rawList.map((r) => ({
         id: r.id,
         customer_id: r.customer_id,
         customer_name: r.customers?.name ?? '(不明顧客)',
         ranger_id: r.ranger_id,
-        ranger_name: r.ranger_profile?.display_name ?? null,
+        ranger_name: rangerNameMap.get(r.ranger_id) ?? null,
         product_id: r.product_id,
         product_name: r.products?.name ?? '(不明商品)',
         product_set_id: r.product_set_id,
