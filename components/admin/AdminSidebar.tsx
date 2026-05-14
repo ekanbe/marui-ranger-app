@@ -12,12 +12,13 @@ import { useProfile } from '@/hooks/use-profile';
 type NavItem = { label: string; path: string; icon: string };
 
 const NAV: NavItem[] = [
-  { label: 'ダッシュボード', path: '/(tabs)',              icon: '📊' },
-  { label: '承認待ち受注',   path: '/approvals',           icon: '🔔' },
-  { label: '見積依頼管理',   path: '/admin-quote-requests',icon: '📝' },
-  { label: '顧客管理',       path: '/(tabs)/customers',    icon: '🏪' },
-  { label: 'レンジャー管理', path: '/(tabs)/rangers',      icon: '👥' },
-  { label: '商品カタログ',   path: '/(tabs)/products',     icon: '📦' },
+  { label: 'ダッシュボード',  path: '/(tabs)',               icon: '📊' },
+  { label: '承認待ち受注',    path: '/approvals',            icon: '🔔' },
+  { label: '見積依頼管理',    path: '/admin-quote-requests', icon: '📝' },
+  { label: 'Bカート見積一覧', path: '/admin-bcart-estimates',icon: '📋' },
+  { label: '顧客管理',        path: '/(tabs)/customers',     icon: '🏪' },
+  { label: 'レンジャー管理',  path: '/(tabs)/rangers',       icon: '👥' },
+  { label: '商品カタログ',    path: '/(tabs)/products',      icon: '📦' },
 ];
 
 export function AdminSidebar() {

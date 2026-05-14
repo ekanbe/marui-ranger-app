@@ -130,6 +130,18 @@ function AdminDashboard({ displayName, avatarUrl }: { displayName: string; avata
         <Text style={styles.ecSyncArrow}>›</Text>
       </Pressable>
 
+      {/* Bカート 見積一覧（管理者エントリ） */}
+      <Pressable onPress={() => router.push('/admin-bcart-estimates' as any)} style={styles.ecSyncRow}>
+        <View style={styles.ecSyncIconBox}>
+          <Text style={styles.ecSyncIcon}>📋</Text>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.ecSyncTitle}>Bカート 見積一覧</Text>
+          <Text style={styles.ecSyncSub}>Bカートで登録された全見積を Polling 同期で表示</Text>
+        </View>
+        <Text style={styles.ecSyncArrow}>›</Text>
+      </Pressable>
+
       {/* ショールーム予約管理（管理者エントリ） */}
       <Pressable onPress={() => router.push('/admin-showroom')} style={styles.ecSyncRow}>
         <View style={styles.ecSyncIconBox}>
