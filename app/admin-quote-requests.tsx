@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Alert, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { AdminGuard } from '@/components/admin/AdminGuard';
 import { Screen } from '@/components/ranger/Screen';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -46,20 +47,17 @@ const STATUS_TONE: Record<QuoteRequestStatus, 'amber' | 'emerald' | 'red' | 'nav
 
 export default function AdminQuoteRequestsScreen() {
   const { session } = useAuth();
-  const { profile } = useProfile(session);
+  const { profile, loading: profileLoading } = useProfile(session);
   const isAdmin = profile?.role === 'admin';
 
   const { rows, loading, error, reload } = useQuoteRequests({ rangerId: null, isAdmin: true });
   const [filter, setFilter] = useState<'pending' | 'all'>('pending');
   const [actioning, setActioning] = useState<string | null>(null);
   const [registerTarget, setRegisterTarget] = useState<QuoteRequest | null>(null);
+  const [rejectTarget, setRejectTarget] = useState<QuoteRequest | null>(null);
 
-  if (!isAdmin) {
-    return (
-      <Screen back>
-        <Text style={styles.error}>管理者のみ利用可能です</Text>
-      </Screen>
-    );
+  if (profileLoading || !isAdmin) {
+    return <AdminGuard loading={profileLoading} />;
   }
 
   const filtered = filter === 'pending' ? rows.filter((r) => r.status === 'pending') : rows;
@@ -193,19 +191,7 @@ export default function AdminQuoteRequestsScreen() {
                       size="md"
                       fullWidth
                       disabled={actioning === r.id}
-                      onPress={async () => {
-                        const note = typeof window !== 'undefined'
-                          ? window.prompt('差戻し理由 (レンジャーに見える)')
-                          : '';
-                        if (!note) return;
-                        setActioning(r.id);
-                        const res = await rejectQuoteRequest(r.id, note);
-                        setActioning(null);
-                        if (res.ok) {
-                          notify('差戻しました');
-                          reload();
-                        } else notify('エラー: ' + res.error);
-                      }}
+                      onPress={() => setRejectTarget(r)}
                     />
                   </View>
                 </View>
@@ -250,6 +236,22 @@ export default function AdminQuoteRequestsScreen() {
           }}
         />
       ) : null}
+
+      {/* 差戻し理由モーダル（window.prompt はネイティブに存在しないため使わない） */}
+      {rejectTarget ? (
+        <RejectModal
+          target={rejectTarget}
+          onClose={() => setRejectTarget(null)}
+          onConfirm={async (note) => {
+            const res = await rejectQuoteRequest(rejectTarget.id, note);
+            if (res.ok) {
+              setRejectTarget(null);
+              notify('差戻しました');
+              reload();
+            } else notify('エラー: ' + res.error);
+          }}
+        />
+      ) : null}
     </Screen>
   );
 }
@@ -261,10 +263,11 @@ function RegisterModal({
 }: {
   target: QuoteRequest;
   onClose: () => void;
-  onConfirm: (id: string, code: string) => void;
+  onConfirm: (id: string, code: string) => Promise<void>;
 }) {
   const [bcartId, setBcartId] = useState('');
   const [bcartCode, setBcartCode] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   return (
     <Modal transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.modalBackdrop}>
@@ -292,7 +295,7 @@ function RegisterModal({
           />
           <View style={styles.modalActions}>
             <View style={{ flex: 1 }}>
-              <Button label="キャンセル" variant="secondary" size="md" fullWidth onPress={onClose} />
+              <Button label="キャンセル" variant="secondary" size="md" fullWidth disabled={submitting} onPress={onClose} />
             </View>
             <View style={{ flex: 1 }}>
               <Button
@@ -300,8 +303,73 @@ function RegisterModal({
                 variant="primary"
                 size="md"
                 fullWidth
-                disabled={!bcartId}
-                onPress={() => onConfirm(bcartId.trim(), bcartCode.trim())}
+                loading={submitting}
+                disabled={!bcartId || submitting}
+                onPress={async () => {
+                  setSubmitting(true);
+                  try {
+                    await onConfirm(bcartId.trim(), bcartCode.trim());
+                  } finally {
+                    setSubmitting(false);
+                  }
+                }}
+              />
+            </View>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+function RejectModal({
+  target,
+  onClose,
+  onConfirm,
+}: {
+  target: QuoteRequest;
+  onClose: () => void;
+  onConfirm: (note: string) => Promise<void>;
+}) {
+  const [note, setNote] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  return (
+    <Modal transparent animationType="fade" onRequestClose={onClose}>
+      <View style={styles.modalBackdrop}>
+        <View style={styles.modalCard}>
+          <Text style={styles.modalTitle}>差戻し</Text>
+          <Text style={styles.modalSub}>
+            {target.customer_name} × {target.product_name}
+          </Text>
+          <Text style={styles.modalLabel}>差戻し理由 (レンジャーに見えます)</Text>
+          <TextInput
+            value={note}
+            onChangeText={setNote}
+            placeholder="例: 希望単価が仕入原価を下回っています"
+            placeholderTextColor={Ink[400]}
+            style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
+            multiline
+          />
+          <View style={styles.modalActions}>
+            <View style={{ flex: 1 }}>
+              <Button label="キャンセル" variant="secondary" size="md" fullWidth disabled={submitting} onPress={onClose} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Button
+                label="差戻す"
+                variant="primary"
+                size="md"
+                fullWidth
+                loading={submitting}
+                disabled={!note.trim() || submitting}
+                onPress={async () => {
+                  setSubmitting(true);
+                  try {
+                    await onConfirm(note.trim());
+                  } finally {
+                    setSubmitting(false);
+                  }
+                }}
               />
             </View>
           </View>

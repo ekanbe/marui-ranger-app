@@ -1,18 +1,29 @@
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { AdminGuard } from '@/components/admin/AdminGuard';
 import { Screen } from '@/components/ranger/Screen';
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { Progress } from '@/components/ui/Progress';
 import { ShimmerList } from '@/components/ui/Shimmer';
 import { rankLabel } from '@/constants/labels';
 import { Brand, Ink, Radius } from '@/constants/theme';
+import { useAuth } from '@/hooks/use-auth';
+import { useProfile } from '@/hooks/use-profile';
 import { useRangersList } from '@/hooks/use-rangers-list';
 import { jpy } from '@/lib/format';
 
 export default function RangersScreen() {
-  const { rangers, loading } = useRangersList();
+  const { session } = useAuth();
+  const { profile, loading: profileLoading } = useProfile(session);
+  const isAdmin = profile?.role === 'admin';
+  const { rangers, loading, error, reload } = useRangersList();
+
+  if (profileLoading || !isAdmin) {
+    return <AdminGuard loading={profileLoading} back={false} />;
+  }
 
   if (loading) {
     return (
@@ -20,6 +31,23 @@ export default function RangersScreen() {
         <Text style={styles.title}>レンジャー管理</Text>
         <View style={{ marginTop: 12 }}>
           <ShimmerList count={5} />
+        </View>
+      </Screen>
+    );
+  }
+
+  if (error) {
+    return (
+      <Screen>
+        <Text style={styles.title}>レンジャー管理</Text>
+        <View style={{ marginTop: 12 }}>
+          <EmptyState
+            icon="⚠️"
+            title="読み込みに失敗しました"
+            message={error}
+            actionLabel="再読み込み"
+            onAction={reload}
+          />
         </View>
       </Screen>
     );

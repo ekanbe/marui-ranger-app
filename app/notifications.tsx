@@ -48,7 +48,7 @@ type Filter = 'all' | 'unread';
 
 export default function NotificationsScreen() {
   const { session } = useAuth();
-  const { rows, loading } = useNotifications(session);
+  const { rows, loading, error, reload } = useNotifications(session);
   const [filter, setFilter] = useState<Filter>('all');
 
   const unreadCount = rows.filter((n) => !n.read_at).length;
@@ -72,6 +72,14 @@ export default function NotificationsScreen() {
 
       {loading ? (
         <ShimmerList count={3} />
+      ) : error ? (
+        <EmptyState
+          icon="⚠️"
+          title="読み込みに失敗しました"
+          message={error}
+          actionLabel="再読み込み"
+          onAction={reload}
+        />
       ) : list.length === 0 ? (
         <EmptyState
           icon="📭"

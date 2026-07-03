@@ -15,6 +15,11 @@ export type ShowroomSlot = {
   customer_names: string[];
 };
 
+// toISOString() は UTC 基準で JST と日付がずれるため、ローカルタイムで YYYY-MM-DD に整形する
+function toLocalDateStr(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 /**
  * 指定日数分のショールーム空き枠を取得
  * @param fromDate 開始日（YYYY-MM-DD or Date）。デフォルト：今日
@@ -27,13 +32,13 @@ export function useShowroomSlots(fromDate?: string | Date, days = 14) {
 
   const start = (() => {
     if (typeof fromDate === 'string') return fromDate;
-    if (fromDate instanceof Date) return fromDate.toISOString().slice(0, 10);
-    return new Date().toISOString().slice(0, 10);
+    if (fromDate instanceof Date) return toLocalDateStr(fromDate);
+    return toLocalDateStr(new Date());
   })();
   const end = (() => {
-    const d = new Date(start);
-    d.setDate(d.getDate() + days);
-    return d.toISOString().slice(0, 10);
+    // 'YYYY-MM-DD' をローカルの日付として解釈して days 日後を計算
+    const [y, m, d] = start.split('-').map(Number);
+    return toLocalDateStr(new Date(y, m - 1, d + days));
   })();
 
   const load = useCallback(async () => {

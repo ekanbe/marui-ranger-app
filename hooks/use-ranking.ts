@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 
 import { supabase } from '@/lib/supabase';
@@ -22,11 +22,19 @@ export type RankingRow = {
 export function useRanking(session: Session | null) {
   const [rows, setRows] = useState<RankingRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  // session オブジェクト自体を依存にすると TOKEN_REFRESHED のたびに再フェッチされるため user.id で見る
+  const myId = session?.user.id;
 
   useEffect(() => {
     let mounted = true;
 
     (async () => {
+      setLoading(true);
+      setError(null);
+
       const [rangersRes, rankingRes] = await Promise.all([
         supabase
           .from('rangers')
@@ -42,13 +50,17 @@ export function useRanking(session: Session | null) {
       if (!mounted) return;
       if (rangersRes.error) console.warn('[useRanking] rangers', rangersRes.error.message);
       if (rankingRes.error) console.warn('[useRanking] ranking', rankingRes.error.message);
+      if (rangersRes.error || rankingRes.error) {
+        setError(rangersRes.error?.message ?? rankingRes.error?.message ?? 'unknown error');
+        setLoading(false);
+        return;
+      }
 
       const salesMap = new Map<string, number>();
       for (const r of (rankingRes.data ?? []) as Array<{ ranger_id: string; sales_jpy: number | string }>) {
         salesMap.set(r.ranger_id, Number(r.sales_jpy ?? 0));
       }
 
-      const myId = session?.user.id;
       const rawRows = (rangersRes.data ?? []) as unknown as Array<{
         id: string;
         ranger_code: string | null;
@@ -92,7 +104,8 @@ export function useRanking(session: Session | null) {
     return () => {
       mounted = false;
     };
-  }, [session]);
+  }, [myId, reloadKey]);
 
-  return { rows, loading };
+  const reload = useCallback(() => setReloadKey((k) => k + 1), []);
+  return { rows, loading, error, reload };
 }

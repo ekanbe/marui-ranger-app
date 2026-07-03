@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import { supabase } from '@/lib/supabase';
+import { fetchAll, supabase } from '@/lib/supabase';
 
 export type EcSyncLog = {
   id: string;
@@ -65,12 +65,24 @@ export function useEcSync() {
       const recentLogs = (logs ?? []) as EcSyncLog[];
       const lastSync = recentLogs[0] ?? null;
 
-      // 直近7日のサマリ
+      // 直近7日のサマリ（直近10件だけでは数時間分しか拾えないため、7日分の専用クエリで集計）
       const sevenDaysAgo = new Date(Date.now() - 7 * 86_400_000).toISOString();
-      const weeklyRows = recentLogs.filter(
-        (l) => l.sync_started_at >= sevenDaysAgo && l.status === 'success'
+      const weeklyRes = await fetchAll<{
+        orders_fetched: number | null;
+        orders_matched: number | null;
+        orders_unmatched: number | null;
+        orders_duplicated: number | null;
+      }>(() =>
+        supabase
+          .from('ec_sync_log')
+          .select('orders_fetched, orders_matched, orders_unmatched, orders_duplicated')
+          .eq('status', 'success')
+          .gte('sync_started_at', sevenDaysAgo)
+          .order('sync_started_at', { ascending: false })
+          .order('id')
       );
-      const weekly = weeklyRows.reduce(
+      if (weeklyRes.error) throw new Error(weeklyRes.error);
+      const weekly = weeklyRes.data.reduce(
         (acc, l) => ({
           fetched: acc.fetched + (l.orders_fetched ?? 0),
           matched: acc.matched + (l.orders_matched ?? 0),
@@ -81,14 +93,7 @@ export function useEcSync() {
       );
 
       // ② 未マッチ注文を memberId でグループ化
-      const { data: unmatched, error: umErr } = await supabase
-        .from('ec_orders_unmatched')
-        .select('id, ec_order_number, ec_member_id, ec_order_date, sum_price')
-        .eq('resolved', false)
-        .order('ec_order_date', { ascending: false })
-        .limit(2000);
-      if (umErr) throw umErr;
-
+      //   limit(2000) は PostgREST の 1000 行上限で切られるため fetchAll でページング取得
       type UnmatchedRow = {
         id: string;
         ec_order_number: string;
@@ -96,7 +101,16 @@ export function useEcSync() {
         ec_order_date: string;
         sum_price: number;
       };
-      const umRows = (unmatched ?? []) as UnmatchedRow[];
+      const umRes = await fetchAll<UnmatchedRow>(() =>
+        supabase
+          .from('ec_orders_unmatched')
+          .select('id, ec_order_number, ec_member_id, ec_order_date, sum_price')
+          .eq('resolved', false)
+          .order('ec_order_date', { ascending: false })
+          .order('id')
+      );
+      if (umRes.error) throw new Error(umRes.error);
+      const umRows = umRes.data;
       const groupMap = new Map<string, UnmatchedGroup>();
       for (const r of umRows) {
         const key = r.ec_member_id ?? '(ゲスト)';

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 
 import { supabase } from '@/lib/supabase';
@@ -9,7 +9,10 @@ export type HomeKpis = {
   monthGrowthPct: number;
   estimatedMarginJpy: number;
   estimatedMarginDeltaJpy: number;
+  /** 全期間のマージン合計。paid（支払済）を「含む」ので、支払済額と足すと二重計上になる */
   cumulativeMarginJpy: number;
+  /** 全期間の未払いマージン合計（cumulativeMarginJpy − 支払済）。支払済額と足し合わせて使うのはこちら */
+  cumulativeUnpaidMarginJpy: number;
   newOrdersCount: number;
   newOrdersDelta: number;
   monthlyGoalJpy: number;
@@ -22,6 +25,7 @@ type SummaryRow = {
   month: string | null;
   sales_jpy: number | null;
   ranger_commission_jpy: number | null;
+  paid_commission_jpy: number | null;
   order_count: number | null;
 };
 
@@ -32,9 +36,14 @@ function monthKey(d: Date) {
 export function useHomeKpis(session: Session | null) {
   const [kpis, setKpis] = useState<HomeKpis | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  // session オブジェクト自体を依存にすると TOKEN_REFRESHED のたびに再フェッチされるため user.id で見る
+  const userId = session?.user.id;
 
   useEffect(() => {
-    if (!session) {
+    if (!userId) {
       setKpis(null);
       setLoading(false);
       return;
@@ -42,21 +51,30 @@ export function useHomeKpis(session: Session | null) {
     let mounted = true;
 
     (async () => {
+      setLoading(true);
+      setError(null);
+
       const [summary, goal] = await Promise.all([
         supabase
           .from('v_ranger_monthly_summary')
-          .select('month, sales_jpy, ranger_commission_jpy, order_count')
-          .eq('ranger_id', session.user.id)
+          .select('month, sales_jpy, ranger_commission_jpy, paid_commission_jpy, order_count')
+          .eq('ranger_id', userId)
           .order('month', { ascending: false }),
         supabase
           .from('rangers')
           .select('monthly_goal_jpy')
-          .eq('id', session.user.id)
+          .eq('id', userId)
           .maybeSingle(),
       ]);
 
       if (!mounted) return;
       if (summary.error) console.warn('[useHomeKpis summary]', summary.error.message);
+      if (goal.error) console.warn('[useHomeKpis goal]', goal.error.message);
+      if (summary.error || goal.error) {
+        setError(summary.error?.message ?? goal.error?.message ?? 'unknown error');
+        setLoading(false);
+        return;
+      }
 
       const now = new Date();
       const thisKey = monthKey(now);
@@ -71,7 +89,9 @@ export function useHomeKpis(session: Session | null) {
       const prevSales = Number(l?.sales_jpy ?? 0);
       const monthMargin = Number(t?.ranger_commission_jpy ?? 0);
       const prevMargin = Number(l?.ranger_commission_jpy ?? 0);
+      // ranger_commission_jpy は pending/confirmed/paid すべての合計（= paid を含む）
       const cumulativeMargin = rows.reduce((s, r) => s + Number(r.ranger_commission_jpy ?? 0), 0);
+      const cumulativePaid = rows.reduce((s, r) => s + Number(r.paid_commission_jpy ?? 0), 0);
       const monthlyGoal = Number((goal.data as { monthly_goal_jpy?: number } | null)?.monthly_goal_jpy ?? 0);
 
       // 過去6ヶ月のトレンド（古→新）
@@ -94,6 +114,7 @@ export function useHomeKpis(session: Session | null) {
         estimatedMarginJpy: monthMargin,
         estimatedMarginDeltaJpy: monthMargin - prevMargin,
         cumulativeMarginJpy: cumulativeMargin,
+        cumulativeUnpaidMarginJpy: Math.max(0, cumulativeMargin - cumulativePaid),
         newOrdersCount: Number(t?.order_count ?? 0),
         newOrdersDelta: Number(t?.order_count ?? 0) - Number(l?.order_count ?? 0),
         monthlyGoalJpy: monthlyGoal,
@@ -107,7 +128,8 @@ export function useHomeKpis(session: Session | null) {
     return () => {
       mounted = false;
     };
-  }, [session]);
+  }, [userId, reloadKey]);
 
-  return { kpis, loading };
+  const reload = useCallback(() => setReloadKey((k) => k + 1), []);
+  return { kpis, loading, error, reload };
 }

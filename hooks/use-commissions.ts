@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 
-import { supabase } from '@/lib/supabase';
+import { fetchAll, supabase } from '@/lib/supabase';
 
 export type CommissionStatus = 'pending' | 'confirmed' | 'paid';
 export type OrderSource = 'manual' | 'ec' | 'showroom' | 'bcart';
@@ -39,9 +39,14 @@ type NestedCommission = {
 export function useCommissions(session: Session | null) {
   const [rows, setRows] = useState<CommissionRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  // session オブジェクト自体を依存にすると TOKEN_REFRESHED のたびに再フェッチされるため user.id で見る
+  const userId = session?.user.id;
 
   useEffect(() => {
-    if (!session) {
+    if (!userId) {
       setRows([]);
       setLoading(false);
       return;
@@ -49,27 +54,39 @@ export function useCommissions(session: Session | null) {
     let mounted = true;
 
     (async () => {
-      const { data, error } = await supabase
-        .from('commissions')
-        .select(
-          `id, ranger_amount_jpy, status, created_at,
-           order_items!inner (
-             id,
-             products ( name ),
-             orders!inner (
-               ordered_at,
-               source,
-               customers ( name, branch_name, image_url )
-             )
-           )`
-        )
-        .eq('ranger_id', session.user.id)
-        .order('created_at', { ascending: false });
+      setLoading(true);
+      setError(null);
+
+      // 累計マージンの集計に使うため全件必要。1000 行を超え得るので fetchAll でページング取得
+      const { data, error: qerr } = await fetchAll<NestedCommission>(() =>
+        supabase
+          .from('commissions')
+          .select(
+            `id, ranger_amount_jpy, status, created_at,
+             order_items!inner (
+               id,
+               products ( name ),
+               orders!inner (
+                 ordered_at,
+                 source,
+                 customers ( name, branch_name, image_url )
+               )
+             )`
+          )
+          .eq('ranger_id', userId)
+          .order('created_at', { ascending: false })
+          .order('id') // ページング安定化のためのタイブレーク
+      );
 
       if (!mounted) return;
-      if (error) console.warn('[useCommissions]', error.message);
+      if (qerr) {
+        console.warn('[useCommissions]', qerr);
+        setError(qerr);
+        setLoading(false);
+        return;
+      }
 
-      const raw = (data ?? []) as unknown as NestedCommission[];
+      const raw = data;
       const result: CommissionRow[] = raw.map((c) => {
         const cust = c.order_items?.orders?.customers ?? null;
         const customerName = [cust?.name, cust?.branch_name].filter(Boolean).join(' ');
@@ -93,7 +110,8 @@ export function useCommissions(session: Session | null) {
     return () => {
       mounted = false;
     };
-  }, [session]);
+  }, [userId, reloadKey]);
 
-  return { rows, loading };
+  const reload = useCallback(() => setReloadKey((k) => k + 1), []);
+  return { rows, loading, error, reload };
 }

@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 
+import { AdminGuard } from '@/components/admin/AdminGuard';
 import { Screen } from '@/components/ranger/Screen';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -82,7 +83,7 @@ function fmtDate(iso: string | null) {
 
 export default function AdminShowroomScreen() {
   const { session } = useAuth();
-  const { profile } = useProfile(session);
+  const { profile, loading: profileLoading } = useProfile(session);
   const isAdmin = profile?.role === 'admin';
 
   const { data, loading, error, reload } = useLineShowroom();
@@ -91,15 +92,8 @@ export default function AdminShowroomScreen() {
   const [showLogs, setShowLogs] = useState(false);
   const [visitTarget, setVisitTarget] = useState<ShowroomInvitationRow | null>(null);
 
-  if (!isAdmin) {
-    return (
-      <Screen back>
-        <Text style={styles.errorText}>管理者のみ利用可能です</Text>
-      </Screen>
-    );
-  }
-
   // 日付別にグルーピング（カレンダー表示の代わり）
+  // ※ hooks は早期 return より前に呼ぶ（順序を安定させる）
   const groupedByDate = useMemo(() => {
     if (!data?.upcomingInvitations) return [];
     const groups = new Map<string, typeof data.upcomingInvitations>();
@@ -111,6 +105,10 @@ export default function AdminShowroomScreen() {
     }
     return Array.from(groups.entries()).sort(([a], [b]) => a.localeCompare(b));
   }, [data]);
+
+  if (profileLoading || !isAdmin) {
+    return <AdminGuard loading={profileLoading} />;
+  }
 
   return (
     <Screen back>

@@ -79,7 +79,8 @@ export const homeKpis = {
   remainingToGoalJpy: 398_000,
   estimatedMarginJpy: 42_100,
   estimatedMarginDeltaJpy: 4_500,
-  cumulativeMarginJpy: 356_800,
+  cumulativeMarginJpy: 356_800,        // paid を含む全期間マージン
+  cumulativeUnpaidMarginJpy: 98_300,   // 未払い分のみ
   customerCount: 12,
   customersGood: 8,
   customersFollow: 2,

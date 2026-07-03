@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
-import { supabase } from '@/lib/supabase';
+import { fetchAll, supabase } from '@/lib/supabase';
 import { SALES_PHASES, type SalesPhase } from '@/lib/sales-phase';
 
 export type AdminOverview = {
@@ -46,24 +46,46 @@ export type AdminOverview = {
 export function useAdminOverview() {
   const [overview, setOverview] = useState<AdminOverview | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let mounted = true;
 
     (async () => {
+      setLoading(true);
+      setError(null);
+
+      // commissions / customers / orders は 1000 行を超え得るため fetchAll でページング取得
       const [rankingRes, commissionsRes, rangersRes, customersRes, allOrdersRes, pendingRes, allRangersRes] = await Promise.all([
         supabase
           .from('v_ranking_this_month')
           .select('ranger_id, sales_jpy, order_count')
           .order('sales_jpy', { ascending: false }),
-        supabase.from('commissions').select('ranger_amount_jpy, status'),
+        fetchAll<{ ranger_amount_jpy: number | string; status: string }>(() =>
+          supabase.from('commissions').select('ranger_amount_jpy, status').order('id')
+        ),
         supabase.from('rangers').select('monthly_goal_jpy, joined_at'),
-        supabase.from('customers').select('id, last_ordered_at, created_at, acquired_by_ranger_id, sales_phase'),
-        supabase
-          .from('orders')
-          .select('customer_id, ordered_at')
-          .neq('status', 'cancelled')
-          .order('ordered_at', { ascending: true }),
+        fetchAll<{
+          id: string;
+          last_ordered_at: string | null;
+          created_at: string | null;
+          acquired_by_ranger_id?: string | null;
+          sales_phase?: SalesPhase | null;
+        }>(() =>
+          supabase
+            .from('customers')
+            .select('id, last_ordered_at, created_at, acquired_by_ranger_id, sales_phase')
+            .order('id')
+        ),
+        fetchAll<{ customer_id: string; ordered_at: string }>(() =>
+          supabase
+            .from('orders')
+            .select('customer_id, ordered_at')
+            .neq('status', 'cancelled')
+            .order('ordered_at', { ascending: true })
+            .order('id') // ページング安定化のためのタイブレーク
+        ),
         supabase
           .from('orders')
           .select('id', { count: 'exact', head: true })
@@ -78,6 +100,23 @@ export function useAdminOverview() {
       ]);
 
       if (!mounted) return;
+
+      // 7 クエリすべての error を集約。一部でも失敗したら「売上 0 円」ではなくエラー表示にする
+      const errors = [
+        rankingRes.error?.message && `ranking: ${rankingRes.error.message}`,
+        commissionsRes.error && `commissions: ${commissionsRes.error}`,
+        rangersRes.error?.message && `rangers: ${rangersRes.error.message}`,
+        customersRes.error && `customers: ${customersRes.error}`,
+        allOrdersRes.error && `orders: ${allOrdersRes.error}`,
+        pendingRes.error?.message && `pending: ${pendingRes.error.message}`,
+        allRangersRes.error?.message && `allRangers: ${allRangersRes.error.message}`,
+      ].filter(Boolean) as string[];
+      if (errors.length > 0) {
+        console.warn('[useAdminOverview]', errors.join(' / '));
+        setError(errors.join(' / '));
+        setLoading(false);
+        return;
+      }
 
       const rankingRows = (rankingRes.data ?? []) as Array<{
         ranger_id: string;
@@ -218,7 +257,8 @@ export function useAdminOverview() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [reloadKey]);
 
-  return { overview, loading };
+  const reload = useCallback(() => setReloadKey((k) => k + 1), []);
+  return { overview, loading, error, reload };
 }

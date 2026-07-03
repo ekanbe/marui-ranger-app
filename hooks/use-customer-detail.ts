@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import { supabase } from '@/lib/supabase';
+import { fetchAll, supabase } from '@/lib/supabase';
 import type { SalesPhase } from '@/lib/sales-phase';
 
 export type Recommendation = {
@@ -54,6 +54,7 @@ type NestedRecommendation = {
 export function useCustomerDetail(customerId: string | undefined) {
   const [detail, setDetail] = useState<CustomerDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchDetail = useCallback(async () => {
     if (!customerId) {
@@ -61,6 +62,7 @@ export function useCustomerDetail(customerId: string | undefined) {
       setDetail(null);
       return;
     }
+    setError(null);
 
     const [custRes, ordersRes, recsRes] = await Promise.all([
       supabase
@@ -72,10 +74,15 @@ export function useCustomerDetail(customerId: string | undefined) {
         )
         .eq('id', customerId)
         .maybeSingle(),
-      supabase
-        .from('orders')
-        .select('ordered_at, total_amount_jpy')
-        .eq('customer_id', customerId),
+      // 累計売上の集計用。1000 行を超え得るため fetchAll でページング取得
+      fetchAll<{ ordered_at: string; total_amount_jpy: number | null }>(() =>
+        supabase
+          .from('orders')
+          .select('ordered_at, total_amount_jpy')
+          .eq('customer_id', customerId)
+          .order('ordered_at', { ascending: true })
+          .order('id') // ページング安定化のためのタイブレーク
+      ),
       supabase
         .from('recommendations')
         .select(
@@ -88,8 +95,15 @@ export function useCustomerDetail(customerId: string | undefined) {
     ]);
 
     if (custRes.error) console.warn('[useCustomerDetail cust]', custRes.error.message);
-    if (ordersRes.error) console.warn('[useCustomerDetail orders]', ordersRes.error.message);
+    if (ordersRes.error) console.warn('[useCustomerDetail orders]', ordersRes.error);
     if (recsRes.error) console.warn('[useCustomerDetail recs]', recsRes.error.message);
+    if (custRes.error) {
+      // 顧客本体が取れなければ詳細は組み立てられない
+      setError(custRes.error.message);
+      setDetail(null);
+      setLoading(false);
+      return;
+    }
 
     const cust = custRes.data as
       | {
@@ -108,7 +122,14 @@ export function useCustomerDetail(customerId: string | undefined) {
         }
       | null;
 
-    const orders = (ordersRes.data ?? []) as { ordered_at: string; total_amount_jpy: number | null }[];
+    // 顧客が見つからない場合は空オブジェクトではなく null を返す（画面側で「見つかりません」表示）
+    if (!cust) {
+      setDetail(null);
+      setLoading(false);
+      return;
+    }
+
+    const orders = ordersRes.data;
 
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -117,7 +138,7 @@ export function useCustomerDetail(customerId: string | undefined) {
       .filter((o) => new Date(o.ordered_at) >= monthStart)
       .reduce((s, o) => s + Number(o.total_amount_jpy ?? 0), 0);
 
-    const painPoints = (cust?.customer_attributes ?? [])
+    const painPoints = (cust.customer_attributes ?? [])
       .filter((a) => a.attribute_key === 'pain_point')
       .map((a) => PAIN_LABEL_FALLBACK(a.attribute_value));
 
@@ -133,17 +154,17 @@ export function useCustomerDetail(customerId: string | undefined) {
     );
 
     setDetail({
-      id: cust?.id ?? customerId,
-      name: cust?.name ?? '',
-      branch_name: cust?.branch_name ?? null,
-      address: cust?.address ?? null,
-      business_type: cust?.business_type ?? null,
-      customer_code: cust?.customer_code ?? '',
-      image_url: cust?.image_url ?? null,
-      last_ordered_at: cust?.last_ordered_at ?? null,
-      sales_phase: cust?.sales_phase ?? null,
-      sales_phase_updated_at: cust?.sales_phase_updated_at ?? null,
-      acquired_by_ranger_id: cust?.acquired_by_ranger_id ?? null,
+      id: cust.id,
+      name: cust.name,
+      branch_name: cust.branch_name,
+      address: cust.address,
+      business_type: cust.business_type,
+      customer_code: cust.customer_code,
+      image_url: cust.image_url,
+      last_ordered_at: cust.last_ordered_at,
+      sales_phase: cust.sales_phase,
+      sales_phase_updated_at: cust.sales_phase_updated_at,
+      acquired_by_ranger_id: cust.acquired_by_ranger_id,
       painPoints,
       monthSalesJpy: monthSales,
       totalSalesJpy: totalSales,
@@ -159,5 +180,5 @@ export function useCustomerDetail(customerId: string | undefined) {
     return () => { mounted = false; };
   }, [fetchDetail]);
 
-  return { detail, loading, refetch: fetchDetail };
+  return { detail, loading, error, refetch: fetchDetail, reload: fetchDetail };
 }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { supabase } from '@/lib/supabase';
 import type { SalesPhase } from '@/lib/sales-phase';
@@ -34,9 +34,12 @@ export function useCustomers() {
   const [customers, setCustomers] = useState<CustomerRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let mounted = true;
+    setLoading(true);
+    setError(null);
     supabase
       .from('customers')
       .select(
@@ -55,7 +58,8 @@ export function useCustomers() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [reloadKey]);
 
-  return { customers, loading, error };
+  const reload = useCallback(() => setReloadKey((k) => k + 1), []);
+  return { customers, loading, error, reload };
 }

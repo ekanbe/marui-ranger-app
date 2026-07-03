@@ -14,6 +14,7 @@ import {
 import { Screen } from '@/components/ranger/Screen';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { SectionTitle } from '@/components/ui/SectionTitle';
 import { ShimmerCard } from '@/components/ui/Shimmer';
 import { Accent, Brand, Ink, Radius } from '@/constants/theme';
@@ -77,11 +78,18 @@ export default function NewOrderScreen() {
       subtotal_jpy: subtotal,
     });
 
-    setSubmitting(false);
     if (itemErr) {
-      setError(itemErr.message);
+      // 補償トランザクション: 明細の登録に失敗したら親受注を削除して孤児受注・二重受注を防ぐ
+      const { error: rollbackErr } = await supabase.from('orders').delete().eq('id', order.id);
+      setSubmitting(false);
+      setError(
+        rollbackErr
+          ? `${itemErr.message}（受注の取消にも失敗しました。管理者に受注番号 ${orderCode} を連絡してください）`
+          : `明細の登録に失敗したため、受注を取り消しました。もう一度お試しください。（${itemErr.message}）`
+      );
       return;
     }
+    setSubmitting(false);
 
     const message = `📝 受注を登録しました\n\n管理者の承認後、報酬 ${jpy(commission)} が確定します。`;
     if (Platform.OS === 'web') {
@@ -99,6 +107,20 @@ export default function NewOrderScreen() {
           <ShimmerCard />
           <ShimmerCard />
         </View>
+      </Screen>
+    );
+  }
+
+  if (!detail) {
+    return (
+      <Screen back>
+        <EmptyState
+          icon="🏪"
+          title="顧客が見つかりません"
+          message="顧客が削除されたか、リンクが無効になっている可能性があります"
+          actionLabel="戻る"
+          onAction={() => router.back()}
+        />
       </Screen>
     );
   }

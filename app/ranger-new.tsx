@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { AdminGuard } from '@/components/admin/AdminGuard';
 import { Screen } from '@/components/ranger/Screen';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -9,6 +10,7 @@ import { SectionTitle } from '@/components/ui/SectionTitle';
 import { rankLabel } from '@/constants/labels';
 import { Brand, Ink, Radius } from '@/constants/theme';
 import { useAuth } from '@/hooks/use-auth';
+import { useProfile } from '@/hooks/use-profile';
 import { supabase } from '@/lib/supabase';
 
 const RANKS = ['bronze', 'silver', 'gold', 'platinum'] as const;
@@ -22,6 +24,8 @@ function generatePassword() {
 
 export default function RangerNewScreen() {
   const { session } = useAuth();
+  const { profile, loading: profileLoading } = useProfile(session);
+  const isAdmin = profile?.role === 'admin';
 
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
@@ -78,6 +82,10 @@ export default function RangerNewScreen() {
     } else {
       Alert.alert('ログイン情報', text);
     }
+  }
+
+  if (profileLoading || !isAdmin) {
+    return <AdminGuard loading={profileLoading} />;
   }
 
   if (success) {

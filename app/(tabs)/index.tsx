@@ -20,23 +20,39 @@ import { useAuth } from '@/hooks/use-auth';
 import { useCommissions } from '@/hooks/use-commissions';
 import { deriveStatus, useCustomers } from '@/hooks/use-customers';
 import { useDormantCustomers } from '@/hooks/use-dormant-customers';
-import { useHomeKpis } from '@/hooks/use-home-kpis';
+import { type HomeKpis, useHomeKpis } from '@/hooks/use-home-kpis';
 import { useMyRanger } from '@/hooks/use-my-ranger';
 import { useProfile } from '@/hooks/use-profile';
 import { useRanking } from '@/hooks/use-ranking';
 import { useTodayTasks } from '@/hooks/use-today-tasks';
 import { jpy, pct } from '@/lib/format';
-import { homeKpis, rangerProfile } from '@/lib/mockData';
 import { SALES_PHASES } from '@/lib/sales-phase';
+
+// 実データ未取得時のゼロ表示用（モックへのフォールバックはしない）
+const ZERO_KPIS: HomeKpis = {
+  monthSalesJpy: 0,
+  prevMonthSalesJpy: 0,
+  monthGrowthPct: 0,
+  estimatedMarginJpy: 0,
+  estimatedMarginDeltaJpy: 0,
+  cumulativeMarginJpy: 0,
+  cumulativeUnpaidMarginJpy: 0,
+  newOrdersCount: 0,
+  newOrdersDelta: 0,
+  monthlyGoalJpy: 0,
+  goalProgressPct: 0,
+  remainingToGoalJpy: 0,
+  monthlyTrend: [],
+};
 
 // ============================================================
 // Admin Dashboard
 // ============================================================
 function AdminDashboard({ displayName, avatarUrl }: { displayName: string; avatarUrl?: string | null }) {
-  const { overview, loading } = useAdminOverview();
+  const { overview, loading, error, reload } = useAdminOverview();
   const { summary: dormancy } = useDormantCustomers({ rangerId: null, isAdmin: true });
 
-  if (loading || !overview) {
+  if (loading) {
     return (
       <Screen>
         <View style={{ gap: 12 }}>
@@ -44,6 +60,20 @@ function AdminDashboard({ displayName, avatarUrl }: { displayName: string; avata
           <ShimmerCard />
           <ShimmerCard />
         </View>
+      </Screen>
+    );
+  }
+
+  if (error || !overview) {
+    return (
+      <Screen>
+        <EmptyState
+          icon="⚠️"
+          title="ダッシュボードの読み込みに失敗しました"
+          message={error ?? 'データを取得できませんでした'}
+          actionLabel="再読み込み"
+          onAction={reload}
+        />
       </Screen>
     );
   }
@@ -403,9 +433,9 @@ function HeaderBar({
 
 export default function HomeScreen() {
   const { session } = useAuth();
-  const { profile } = useProfile(session);
-  const { kpis } = useHomeKpis(session);
-  const { customers } = useCustomers();
+  const { profile, loading: profileLoading } = useProfile(session);
+  const { kpis, loading: kpisLoading, error: kpisError, reload: reloadKpis } = useHomeKpis(session);
+  const { customers, loading: customersLoading, error: customersError, reload: reloadCustomers } = useCustomers();
   const { tasks: allTasks } = useTodayTasks(session);
   const { ranger: myRanger } = useMyRanger(session);
   const { rows: commissions } = useCommissions(session);
@@ -421,23 +451,67 @@ export default function HomeScreen() {
   const remain = Math.max(0, 4 - followTasks.length - showroomTasks.length);
   const todayTasks = [...followTasks, ...showroomTasks, ...recommendTasks.slice(0, remain)];
 
-  const displayName = profile?.display_name ?? rangerProfile.name;
+  const displayName = profile?.display_name ?? '';
   const avatarUrl = profile?.avatar_url;
-  const role = profile?.role ?? rangerProfile.rank;
+  const role = profile?.role ?? null;
+
+  // profile 読込中はモック名等を出さず Shimmer を表示
+  if (profileLoading) {
+    return (
+      <Screen>
+        <View style={{ gap: 12 }}>
+          <ShimmerCard />
+          <ShimmerCard />
+          <ShimmerCard />
+        </View>
+      </Screen>
+    );
+  }
 
   // 管理ダッシュボードは Web 限定
   if (profile?.role === 'admin' && Platform.OS === 'web') {
     return <AdminDashboard displayName={displayName} avatarUrl={avatarUrl} />;
   }
 
-  const k = { ...homeKpis, ...(kpis ?? {}) };
-  const customerCount = customers.length || k.customerCount;
-  const customersGood = customers.length
-    ? customers.filter((c) => deriveStatus(c.last_ordered_at) === 'good').length
-    : k.customersGood;
-  const customersFollow = customers.length
-    ? customers.filter((c) => deriveStatus(c.last_ordered_at) === 'follow').length
-    : k.customersFollow;
+  // KPI・顧客の読込中も Shimmer（モックへのフォールバックはしない）
+  if (kpisLoading || customersLoading) {
+    return (
+      <Screen>
+        <View style={{ gap: 12 }}>
+          <ShimmerCard />
+          <ShimmerCard />
+          <ShimmerCard />
+        </View>
+      </Screen>
+    );
+  }
+
+  // 読込エラー時は 0 円表示ではなくエラー表示＋再読み込み
+  if (kpisError || customersError) {
+    return (
+      <Screen>
+        <EmptyState
+          icon="⚠️"
+          title="読み込みに失敗しました"
+          message={kpisError ?? customersError ?? undefined}
+          actionLabel="再読み込み"
+          onAction={() => {
+            if (kpisError) reloadKpis();
+            if (customersError) reloadCustomers();
+          }}
+        />
+      </Screen>
+    );
+  }
+
+  const k = kpis ?? ZERO_KPIS;
+  const customerCount = customers.length;
+  const customersGood = customers.filter(
+    (c) => deriveStatus(c.last_ordered_at) === 'good'
+  ).length;
+  const customersFollow = customers.filter(
+    (c) => deriveStatus(c.last_ordered_at) === 'follow'
+  ).length;
 
   // ── 営業フェーズ集計（レンジャー獲得顧客のみ）──
   const acquiredCustomers = customers.filter((c) => c.acquired_by_ranger_id);

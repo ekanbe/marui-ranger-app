@@ -9,14 +9,15 @@ import { Card } from '@/components/ui/Card';
 import { HeroCard } from '@/components/ui/HeroCard';
 import { KpiCard } from '@/components/ui/KpiCard';
 import { Progress } from '@/components/ui/Progress';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { SectionTitle } from '@/components/ui/SectionTitle';
+import { ShimmerCard } from '@/components/ui/Shimmer';
 import { Accent, Brand, Ink, Radius } from '@/constants/theme';
 import { useAuth } from '@/hooks/use-auth';
 import { type CommissionStatus, useCommissions } from '@/hooks/use-commissions';
 import { useHomeKpis } from '@/hooks/use-home-kpis';
 import { useProfile } from '@/hooks/use-profile';
 import { jpy, shortDate } from '@/lib/format';
-import { homeKpis } from '@/lib/mockData';
 
 const STATUS_LABEL: Record<CommissionStatus, string> = { pending: '承認待ち', confirmed: '確定', paid: '受取済' };
 const STATUS_TONE: Record<CommissionStatus, 'amber' | 'emerald' | 'navy'> = {
@@ -28,8 +29,8 @@ const STATUS_TONE: Record<CommissionStatus, 'amber' | 'emerald' | 'navy'> = {
 export default function MarginScreen() {
   const { session } = useAuth();
   const { profile } = useProfile(session);
-  const { kpis } = useHomeKpis(session);
-  const { rows: commissions } = useCommissions(session);
+  const { kpis, loading: kpisLoading, error: kpisError, reload: reloadKpis } = useHomeKpis(session);
+  const { rows: commissions, error: commissionsError, reload: reloadCommissions } = useCommissions(session);
 
   // 管理ガード: Web のみ。iOS/Android では admin もこの画面（個人マージン）を見られるようにする
   if (profile?.role === 'admin' && Platform.OS === 'web') {
@@ -50,11 +51,43 @@ export default function MarginScreen() {
     );
   }
 
-  const estimatedMarginJpy = kpis?.estimatedMarginJpy ?? homeKpis.estimatedMarginJpy;
-  const estimatedMarginDeltaJpy = kpis?.estimatedMarginDeltaJpy ?? homeKpis.estimatedMarginDeltaJpy;
-  const cumulativeMarginJpy = kpis?.cumulativeMarginJpy ?? homeKpis.cumulativeMarginJpy;
-  const goalProgressPct = kpis?.goalProgressPct ?? homeKpis.goalProgressPct;
-  const remainingToGoalJpy = kpis?.remainingToGoalJpy ?? homeKpis.remainingToGoalJpy;
+  // KPI 読込中は Shimmer（モックへのフォールバックはしない）
+  if (kpisLoading) {
+    return (
+      <Screen>
+        <Text style={styles.title}>マージン</Text>
+        <View style={{ gap: 12 }}>
+          <ShimmerCard />
+          <ShimmerCard />
+        </View>
+      </Screen>
+    );
+  }
+
+  // 読込エラー時は 0 円表示ではなくエラー表示＋再読み込み
+  if (kpisError || commissionsError) {
+    return (
+      <Screen>
+        <Text style={styles.title}>マージン</Text>
+        <EmptyState
+          icon="⚠️"
+          title="読み込みに失敗しました"
+          message={kpisError ?? commissionsError ?? undefined}
+          actionLabel="再読み込み"
+          onAction={() => {
+            if (kpisError) reloadKpis();
+            if (commissionsError) reloadCommissions();
+          }}
+        />
+      </Screen>
+    );
+  }
+
+  const estimatedMarginJpy = kpis?.estimatedMarginJpy ?? 0;
+  const estimatedMarginDeltaJpy = kpis?.estimatedMarginDeltaJpy ?? 0;
+  const cumulativeMarginJpy = kpis?.cumulativeMarginJpy ?? 0;
+  const goalProgressPct = kpis?.goalProgressPct ?? 0;
+  const remainingToGoalJpy = kpis?.remainingToGoalJpy ?? 0;
 
   // ステータス別に集計
   const now = new Date();
@@ -120,11 +153,12 @@ export default function MarginScreen() {
         />
       </View>
       <View style={styles.grid}>
+        {/* cumulativeMarginJpy は受取済(paid)を含む全期間マージンなので paidTotal を足すと二重計上になる */}
         <KpiCard
-          label="累計受取"
-          value={jpy(paidTotal + cumulativeMarginJpy)}
+          label="累計マージン"
+          value={jpy(cumulativeMarginJpy)}
           tone="ink"
-          delta="2026年度"
+          delta={`うち受取済 ${jpy(paidTotal)}`}
           style={{ flex: 1 }}
         />
       </View>

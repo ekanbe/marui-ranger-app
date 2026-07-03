@@ -29,10 +29,14 @@ type NestedInvitation = {
 export function useShowroom(session: Session | null) {
   const [items, setItems] = useState<ShowroomItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
 
+  // session オブジェクト自体を依存にすると TOKEN_REFRESHED のたびに再フェッチされるため user.id で見る
+  const userId = session?.user.id;
+
   useEffect(() => {
-    if (!session) {
+    if (!userId) {
       setItems([]);
       setLoading(false);
       return;
@@ -40,28 +44,48 @@ export function useShowroom(session: Session | null) {
     let mounted = true;
 
     (async () => {
-      const [invitesRes, productsRes] = await Promise.all([
-        supabase
-          .from('showroom_invitations')
-          .select(
-            `id, scheduled_at, status,
-             customers ( name, branch_name, image_url ),
-             showroom_visits ( memo, tasted_products )`
-          )
-          .eq('ranger_id', session.user.id)
-          .order('scheduled_at', { ascending: true }),
-        supabase.from('products').select('id, name'),
-      ]);
+      setLoading(true);
+      setError(null);
+
+      const invitesRes = await supabase
+        .from('showroom_invitations')
+        .select(
+          `id, scheduled_at, status,
+           customers ( name, branch_name, image_url ),
+           showroom_visits ( memo, tasted_products )`
+        )
+        .eq('ranger_id', userId)
+        .order('scheduled_at', { ascending: true });
 
       if (!mounted) return;
-      if (invitesRes.error) console.warn('[useShowroom invites]', invitesRes.error.message);
-      if (productsRes.error) console.warn('[useShowroom products]', productsRes.error.message);
+      if (invitesRes.error) {
+        console.warn('[useShowroom invites]', invitesRes.error.message);
+        setError(invitesRes.error.message);
+        setLoading(false);
+        return;
+      }
 
-      const productMap = new Map<string, string>(
-        ((productsRes.data ?? []) as { id: string; name: string }[]).map((p) => [p.id, p.name])
-      );
+      const invites = (invitesRes.data ?? []) as unknown as NestedInvitation[];
 
-      const result: ShowroomItem[] = ((invitesRes.data ?? []) as unknown as NestedInvitation[]).map((inv) => {
+      // 試食された商品の名前だけ引く（products 全件は取らない）
+      const tastedIdSet = new Set<string>();
+      for (const inv of invites) {
+        for (const id of inv.showroom_visits?.[0]?.tasted_products ?? []) tastedIdSet.add(id);
+      }
+      const productMap = new Map<string, string>();
+      if (tastedIdSet.size > 0) {
+        const productsRes = await supabase
+          .from('products')
+          .select('id, name')
+          .in('id', Array.from(tastedIdSet));
+        if (!mounted) return;
+        if (productsRes.error) console.warn('[useShowroom products]', productsRes.error.message);
+        for (const p of (productsRes.data ?? []) as { id: string; name: string }[]) {
+          productMap.set(p.id, p.name);
+        }
+      }
+
+      const result: ShowroomItem[] = invites.map((inv) => {
         const cust = inv.customers;
         const visit = inv.showroom_visits?.[0] ?? null;
         const tastedIds = visit?.tasted_products ?? [];
@@ -84,8 +108,8 @@ export function useShowroom(session: Session | null) {
     return () => {
       mounted = false;
     };
-  }, [session, reloadKey]);
+  }, [userId, reloadKey]);
 
   const reload = () => setReloadKey((k) => k + 1);
-  return { items, loading, reload };
+  return { items, loading, error, reload };
 }

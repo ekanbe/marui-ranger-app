@@ -34,7 +34,7 @@ const DORMANCY_LABEL: Record<Exclude<DormancyFilter, null>, string> = {
 };
 
 export default function CustomersScreen() {
-  const { customers, loading } = useCustomers();
+  const { customers, loading, error, reload } = useCustomers();
   const { session } = useAuth();
   const { profile } = useProfile(session);
   const isAdmin = profile?.role === 'admin';
@@ -193,6 +193,14 @@ export default function CustomersScreen() {
       {/* リスト */}
       {loading ? (
         <ShimmerList count={4} />
+      ) : error ? (
+        <EmptyState
+          icon="⚠️"
+          title="読み込みに失敗しました"
+          message={error}
+          actionLabel="再読み込み"
+          onAction={reload}
+        />
       ) : list.length === 0 ? (
         <EmptyState
           icon="🏪"

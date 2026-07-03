@@ -12,7 +12,7 @@ import { Card } from '@/components/ui/Card';
 import { SectionTitle } from '@/components/ui/SectionTitle';
 import { ShimmerCard } from '@/components/ui/Shimmer';
 import { roleLabel } from '@/constants/labels';
-import { Brand, Ink, Radius } from '@/constants/theme';
+import { Ink, Radius } from '@/constants/theme';
 import { useAuth } from '@/hooks/use-auth';
 import { useMyRanger } from '@/hooks/use-my-ranger';
 import { useProfile } from '@/hooks/use-profile';
@@ -396,5 +396,3 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
-
-void Brand;

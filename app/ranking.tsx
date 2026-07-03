@@ -4,6 +4,7 @@ import { Screen } from '@/components/ranger/Screen';
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { HeroCard } from '@/components/ui/HeroCard';
 import { SectionTitle } from '@/components/ui/SectionTitle';
 import { ShimmerList } from '@/components/ui/Shimmer';
@@ -16,7 +17,7 @@ import { jpy } from '@/lib/format';
 
 export default function RankingScreen() {
   const { session } = useAuth();
-  const { rows, loading } = useRanking(session);
+  const { rows, loading, error, reload } = useRanking(session);
   const { badges } = useRangerBadges(session);
   const myRow = rows.find((r) => r.isMe);
 
@@ -59,6 +60,14 @@ export default function RankingScreen() {
       />
       {loading ? (
         <ShimmerList count={5} />
+      ) : error ? (
+        <EmptyState
+          icon="⚠️"
+          title="読み込みに失敗しました"
+          message={error}
+          actionLabel="再読み込み"
+          onAction={reload}
+        />
       ) : (
         <Card variant="surface" padding={0} style={{ overflow: 'hidden' }}>
           {rows.map((r, i) => {

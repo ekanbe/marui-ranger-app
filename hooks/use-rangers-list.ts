@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { supabase } from '@/lib/supabase';
 
@@ -22,11 +22,16 @@ export type RangerListItem = {
 export function useRangersList() {
   const [rangers, setRangers] = useState<RangerListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let mounted = true;
 
     (async () => {
+      setLoading(true);
+      setError(null);
+
       const [rangersRes, rankingRes] = await Promise.all([
         supabase
           .from('rangers')
@@ -42,6 +47,11 @@ export function useRangersList() {
       if (!mounted) return;
       if (rangersRes.error) console.warn('[useRangersList] rangers', rangersRes.error.message);
       if (rankingRes.error) console.warn('[useRangersList] ranking', rankingRes.error.message);
+      if (rangersRes.error || rankingRes.error) {
+        setError(rangersRes.error?.message ?? rankingRes.error?.message ?? 'unknown error');
+        setLoading(false);
+        return;
+      }
 
       const salesMap = new Map<string, { sales_jpy: number; order_count: number }>();
       for (const r of (rankingRes.data ?? []) as Array<{
@@ -103,7 +113,8 @@ export function useRangersList() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [reloadKey]);
 
-  return { rangers, loading };
+  const reload = useCallback(() => setReloadKey((k) => k + 1), []);
+  return { rangers, loading, error, reload };
 }

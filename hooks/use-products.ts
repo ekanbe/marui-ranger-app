@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { supabase } from '@/lib/supabase';
 
@@ -40,11 +40,16 @@ type NestedProduct = {
 export function useProducts() {
   const [products, setProducts] = useState<ProductRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let mounted = true;
     (async () => {
-      const { data, error } = await supabase
+      setLoading(true);
+      setError(null);
+
+      const { data, error: qerr } = await supabase
         .from('products')
         .select(
           `id, name, category, image_url, pitch_script, pain_solution,
@@ -56,7 +61,12 @@ export function useProducts() {
         .order('name');
 
       if (!mounted) return;
-      if (error) console.warn('[useProducts]', error.message);
+      if (qerr) {
+        console.warn('[useProducts]', qerr.message);
+        setError(qerr.message);
+        setLoading(false);
+        return;
+      }
 
       const rows: ProductRow[] = ((data ?? []) as unknown as NestedProduct[]).map((p) => {
         const prices = p.product_prices ?? [];
@@ -89,7 +99,8 @@ export function useProducts() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [reloadKey]);
 
-  return { products, loading };
+  const reload = useCallback(() => setReloadKey((k) => k + 1), []);
+  return { products, loading, error, reload };
 }

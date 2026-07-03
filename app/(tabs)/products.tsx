@@ -13,7 +13,7 @@ import { useProducts } from '@/hooks/use-products';
 import { jpy } from '@/lib/format';
 
 export default function ProductsScreen() {
-  const { products, loading } = useProducts();
+  const { products, loading, error, reload } = useProducts();
   const [query, setQuery] = useState('');
   const [cat, setCat] = useState<string>('all');
 
@@ -71,6 +71,14 @@ export default function ProductsScreen() {
 
       {loading ? (
         <ShimmerList count={3} />
+      ) : error ? (
+        <EmptyState
+          icon="⚠️"
+          title="読み込みに失敗しました"
+          message={error}
+          actionLabel="再読み込み"
+          onAction={reload}
+        />
       ) : list.length === 0 ? (
         <EmptyState
           icon="📦"

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import { supabase } from '@/lib/supabase';
+import { fetchAll, supabase } from '@/lib/supabase';
 
 export type BcartSyncLog = {
   id: string;
@@ -71,14 +71,25 @@ export function useBcartSync() {
       const lastOrdersSync = recentLogs.find((l) => l.sync_kind === 'orders') ?? null;
 
       // 直近7日のサマリ（ordersのみ）
+      // 直近20件では数時間分しか拾えないため、7日分の専用クエリで集計する。
+      // 10分間隔 cron だと 7日で 1000 行を超えるので fetchAll でページング取得。
       const sevenDaysAgo = new Date(Date.now() - 7 * 86_400_000).toISOString();
-      const weeklyRows = recentLogs.filter(
-        (l) =>
-          l.sync_kind === 'orders' &&
-          l.sync_started_at >= sevenDaysAgo &&
-          l.status === 'success',
+      const weeklyRes = await fetchAll<{
+        records_fetched: number | null;
+        records_matched: number | null;
+        records_unmatched: number | null;
+      }>(() =>
+        supabase
+          .from('bcart_sync_log')
+          .select('records_fetched, records_matched, records_unmatched')
+          .eq('sync_kind', 'orders')
+          .eq('status', 'success')
+          .gte('sync_started_at', sevenDaysAgo)
+          .order('sync_started_at', { ascending: false })
+          .order('id'),
       );
-      const weekly = weeklyRows.reduce(
+      if (weeklyRes.error) throw new Error(weeklyRes.error);
+      const weekly = weeklyRes.data.reduce(
         (acc, l) => ({
           fetched: acc.fetched + (l.records_fetched ?? 0),
           matched: acc.matched + (l.records_matched ?? 0),

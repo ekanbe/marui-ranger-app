@@ -5,13 +5,13 @@ import { Screen } from '@/components/ranger/Screen';
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
+import { Shimmer } from '@/components/ui/Shimmer';
 import { roleLabel } from '@/constants/labels';
 import { Accent, Ink, Radius } from '@/constants/theme';
 import { signOut, useAuth } from '@/hooks/use-auth';
 import { useMyRanger } from '@/hooks/use-my-ranger';
 import { useNotifications } from '@/hooks/use-notifications';
 import { useProfile } from '@/hooks/use-profile';
-import { rangerProfile } from '@/lib/mockData';
 
 function handleLogout() {
   if (Platform.OS === 'web') {
@@ -30,9 +30,10 @@ type Item = { key: string; icon: string; label: string; sub: string; path: strin
 
 export default function MoreScreen() {
   const { session } = useAuth();
-  const { profile } = useProfile(session);
-  const displayName = profile?.display_name ?? rangerProfile.name;
-  const role = profile?.role ?? rangerProfile.rank;
+  const { profile, loading: profileLoading } = useProfile(session);
+  // profile 読込中はモック名を出さず空表示にする
+  const displayName = profile?.display_name ?? '';
+  const role = profile?.role ?? null;
   const email = profile?.email ?? session?.user.email ?? '';
 
   const { rows: notificationRows } = useNotifications(session);
@@ -44,9 +45,10 @@ export default function MoreScreen() {
       : roleLabel(role);
 
   const items: Item[] = [
-    { key: 'notifications', icon: '🔔', label: '通知',           sub: '受注・達成・アラート',   path: '/notifications', badge: unread },
-    { key: 'ranking',       icon: '🏆', label: 'ランク・実績',    sub: '月間ランキング / バッジ', path: '/ranking' },
-    { key: 'showroom',      icon: '✨', label: 'ショールーム',    sub: '招待・来場管理',         path: '/showroom' },
+    { key: 'notifications',  icon: '🔔', label: '通知',           sub: '受注・達成・アラート',        path: '/notifications', badge: unread },
+    { key: 'quote-requests', icon: '📝', label: '見積依頼の状況',  sub: '承認待ち / 承認済 / 差戻し',  path: '/my-quote-requests' },
+    { key: 'ranking',        icon: '🏆', label: 'ランク・実績',    sub: '月間ランキング / バッジ',     path: '/ranking' },
+    { key: 'showroom',       icon: '✨', label: 'ショールーム',    sub: '招待・来場管理',              path: '/showroom' },
   ];
 
   return (
@@ -62,11 +64,17 @@ export default function MoreScreen() {
           <View style={styles.profile}>
             <Avatar name={displayName} imageUrl={profile?.avatar_url} size="lg" />
             <View style={{ flex: 1 }}>
-              <Text style={styles.name}>{displayName}</Text>
+              {profileLoading ? (
+                <Shimmer width={120} height={17} />
+              ) : (
+                <Text style={styles.name}>{displayName}</Text>
+              )}
               {email ? <Text style={styles.email}>{email}</Text> : null}
-              <View style={{ marginTop: 6 }}>
-                <Badge label={displayRoleLabel} tone={role === 'admin' ? 'violet' : 'navy'} />
-              </View>
+              {!profileLoading ? (
+                <View style={{ marginTop: 6 }}>
+                  <Badge label={displayRoleLabel} tone={role === 'admin' ? 'violet' : 'navy'} />
+                </View>
+              ) : null}
             </View>
             <Text style={styles.editIcon}>✎</Text>
           </View>

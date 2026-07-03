@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Brand, Ink, Radius } from '@/constants/theme';
+import { Brand, Radius } from '@/constants/theme';
 import { useIsWide } from '@/hooks/use-is-wide';
 import { supabase } from '@/lib/supabase';
 
@@ -32,7 +32,7 @@ export default function LoginScreen() {
     if (error) setError(error.message);
   }
 
-  void Ink;
+  const canSubmit = !loading && !!email && !!password;
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -66,6 +66,8 @@ export default function LoginScreen() {
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
+                returnKeyType="next"
+                onSubmitEditing={() => { if (canSubmit) signIn(); }}
                 style={styles.input}
               />
             </View>
@@ -86,6 +88,8 @@ export default function LoginScreen() {
                 autoCapitalize="none"
                 autoCorrect={false}
                 autoComplete="current-password"
+                returnKeyType="go"
+                onSubmitEditing={() => { if (canSubmit) signIn(); }}
                 style={styles.input}
               />
               {showPassword && password.length > 0 ? (

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { supabase } from '@/lib/supabase';
 
@@ -47,6 +47,8 @@ type NestedRanger = {
 export function useRangerDetail(rangerId: string | undefined) {
   const [detail, setDetail] = useState<RangerDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     if (!rangerId) {
@@ -57,6 +59,9 @@ export function useRangerDetail(rangerId: string | undefined) {
     let mounted = true;
 
     (async () => {
+      setLoading(true);
+      setError(null);
+
       const [rangerRes, numberRes, summaryRes, commissionsRes, customersRes, orderCountRes] = await Promise.all([
         supabase
           .from('rangers')
@@ -90,6 +95,22 @@ export function useRangerDetail(rangerId: string | undefined) {
       ]);
 
       if (!mounted) return;
+
+      // 6 クエリの error を集約（従来はチェック自体が無く、失敗が 0 円表示に化けていた）
+      const errors = [
+        rangerRes.error?.message && `ranger: ${rangerRes.error.message}`,
+        numberRes.error?.message && `number: ${numberRes.error.message}`,
+        summaryRes.error?.message && `summary: ${summaryRes.error.message}`,
+        commissionsRes.error?.message && `commissions: ${commissionsRes.error.message}`,
+        customersRes.error?.message && `customers: ${customersRes.error.message}`,
+        orderCountRes.error?.message && `orderCount: ${orderCountRes.error.message}`,
+      ].filter(Boolean) as string[];
+      if (errors.length > 0) {
+        console.warn('[useRangerDetail]', errors.join(' / '));
+        setError(errors.join(' / '));
+        setLoading(false);
+        return;
+      }
 
       const r = rangerRes.data as unknown as NestedRanger | null;
       if (!r) {
@@ -163,7 +184,8 @@ export function useRangerDetail(rangerId: string | undefined) {
     return () => {
       mounted = false;
     };
-  }, [rangerId]);
+  }, [rangerId, reloadKey]);
 
-  return { detail, loading };
+  const reload = useCallback(() => setReloadKey((k) => k + 1), []);
+  return { detail, loading, error, reload };
 }

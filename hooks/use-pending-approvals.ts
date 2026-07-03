@@ -41,10 +41,14 @@ export function usePendingApprovals(session: Session | null, options: { onlyMine
   const { onlyMine = false } = options;
   const [orders, setOrders] = useState<PendingOrder[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [reloadAt, setReloadAt] = useState(0);
 
+  // session オブジェクト自体を依存にすると TOKEN_REFRESHED のたびに再フェッチされるため user.id で見る
+  const userId = session?.user.id;
+
   useEffect(() => {
-    if (!session) {
+    if (!userId) {
       setOrders([]);
       setLoading(false);
       return;
@@ -52,6 +56,9 @@ export function usePendingApprovals(session: Session | null, options: { onlyMine
     let mounted = true;
 
     (async () => {
+      setLoading(true);
+      setError(null);
+
       let query = supabase
         .from('orders')
         .select(
@@ -64,13 +71,18 @@ export function usePendingApprovals(session: Session | null, options: { onlyMine
         .order('ordered_at', { ascending: false });
 
       if (onlyMine) {
-        query = query.eq('ranger_id', session.user.id);
+        query = query.eq('ranger_id', userId);
       }
 
-      const { data, error } = await query;
+      const { data, error: qerr } = await query;
 
       if (!mounted) return;
-      if (error) console.warn('[usePendingApprovals]', error.message);
+      if (qerr) {
+        console.warn('[usePendingApprovals]', qerr.message);
+        setError(qerr.message);
+        setLoading(false);
+        return;
+      }
 
       const raw = (data ?? []) as unknown as NestedOrder[];
       const result: PendingOrder[] = raw.map((o) => {
@@ -96,7 +108,7 @@ export function usePendingApprovals(session: Session | null, options: { onlyMine
     return () => {
       mounted = false;
     };
-  }, [session, onlyMine, reloadAt]);
+  }, [userId, onlyMine, reloadAt]);
 
-  return { orders, loading, reload: () => setReloadAt(Date.now()) };
+  return { orders, loading, error, reload: () => setReloadAt(Date.now()) };
 }

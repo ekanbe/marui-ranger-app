@@ -1,13 +1,26 @@
 import { Image } from 'expo-image';
 import { router, usePathname } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
 import { roleLabel } from '@/constants/labels';
-import { Brand, Ink, Radius } from '@/constants/theme';
+import { Brand, Radius } from '@/constants/theme';
 import { signOut, useAuth } from '@/hooks/use-auth';
 import { useProfile } from '@/hooks/use-profile';
+
+function handleLogout() {
+  if (Platform.OS === 'web') {
+    if (typeof window !== 'undefined' && window.confirm('ログアウトしますか？')) {
+      signOut();
+    }
+    return;
+  }
+  Alert.alert('ログアウト', 'ログアウトしますか？', [
+    { text: 'キャンセル', style: 'cancel' },
+    { text: 'ログアウト', style: 'destructive', onPress: () => { signOut(); } },
+  ]);
+}
 
 type NavItem = { label: string; path: string; icon: string };
 
@@ -93,7 +106,7 @@ export function AdminSidebar() {
           <Text style={styles.actionText}>🔐 パスワード変更</Text>
         </Pressable>
         <Pressable
-          onPress={() => signOut()}
+          onPress={handleLogout}
           style={({ pressed }) => [styles.actionBtn, pressed && { opacity: 0.7 }]}
         >
           <Text style={styles.actionText}>🚪 ログアウト</Text>
@@ -156,5 +169,3 @@ const styles = StyleSheet.create({
   actionBtn: { padding: 10, alignItems: 'center' },
   actionText: { color: 'rgba(255,255,255,0.6)', fontSize: 11, fontWeight: '700' },
 });
-
-void Ink;

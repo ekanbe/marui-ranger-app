@@ -10,7 +10,6 @@ import { Brand, Ink, Radius } from '@/constants/theme';
 import { useAuth } from '@/hooks/use-auth';
 import { supabase } from '@/lib/supabase';
 
-const TEMP_PASSWORD = 'Marui2026Spring!';
 const MIN_LENGTH = 8;
 
 export default function PasswordChangeScreen() {
@@ -25,7 +24,6 @@ export default function PasswordChangeScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const isUsingTempPassword = currentPassword === TEMP_PASSWORD;
   const newPasswordTooShort = newPassword.length > 0 && newPassword.length < MIN_LENGTH;
   const confirmMismatch = confirmPassword.length > 0 && newPassword !== confirmPassword;
   const sameAsCurrent =
@@ -82,14 +80,12 @@ export default function PasswordChangeScreen() {
       <Text style={styles.title}>パスワード変更</Text>
       <Text style={styles.sub}>本人だけが知るパスワードに変更してください</Text>
 
-      {isUsingTempPassword ? (
-        <Card variant="muted" padding={14} style={{ marginTop: 12, marginBottom: 4 }}>
-          <Text style={styles.warnIcon}>🔐 仮パスワードでログイン中</Text>
-          <Text style={styles.warnText}>
-            セキュリティのため、初回ログイン後にご自身のパスワードに変更してください。
-          </Text>
-        </Card>
-      ) : null}
+      <Card variant="muted" padding={14} style={{ marginTop: 12, marginBottom: 4 }}>
+        <Text style={styles.warnIcon}>🔐 初期パスワードのままの方へ</Text>
+        <Text style={styles.warnText}>
+          セキュリティのため、管理者から渡された初期パスワードでログイン中の方は、必ずご自身のパスワードに変更してください。
+        </Text>
+      </Card>
 
       {/* アカウント */}
       <SectionTitle title="アカウント" caption="変更不可" style={{ marginTop: 20 }} />

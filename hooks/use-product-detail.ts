@@ -82,6 +82,7 @@ export function useProductDetail(productId: string | undefined) {
     }
     let mounted = true;
 
+    // 途中で throw しても finally で setLoading(false) を保証（無限ローディング防止）
     (async () => {
       const [prodRes, recsRes, setsRes] = await Promise.all([
         supabase
@@ -117,7 +118,6 @@ export function useProductDetail(productId: string | undefined) {
       const p = prodRes.data as unknown as NestedProduct | null;
       if (!p) {
         setDetail(null);
-        setLoading(false);
         return;
       }
 
@@ -147,7 +147,7 @@ export function useProductDetail(productId: string | undefined) {
         name: string | null;
         product_no: string | null;
         unit_price: number | null;
-        group_price: Record<string, { name: string; rate: string; unit_price: number }> | null;
+        group_price: Record<string, { name?: string; rate?: string; unit_price?: number | string }> | null;
         special_price: Record<string, unknown> | null;
         stock: number | null;
         jan_code: string | null;
@@ -159,15 +159,26 @@ export function useProductDetail(productId: string | undefined) {
         name: s.name,
         product_no: s.product_no,
         unit_price: s.unit_price,
-        group_prices: s.group_price
-          ? Object.entries(s.group_price).map(([k, v]) => ({
-              price_group_id: k,
-              name: v.name,
-              unit_price: Number(v.unit_price),
-              rate: v.rate,
-            }))
-          : [],
-        special_price_count: s.special_price ? Object.keys(s.special_price).length : 0,
+        // group_price / special_price は Bカート由来の jsonb。
+        // 値の構造は保証されないため、object であることを確認してから読む
+        group_prices:
+          s.group_price && typeof s.group_price === 'object'
+            ? Object.entries(s.group_price).flatMap(([k, v]) => {
+                if (!v || typeof v !== 'object') return [];
+                return [
+                  {
+                    price_group_id: k,
+                    name: v.name ?? '',
+                    unit_price: Number(v.unit_price ?? 0),
+                    rate: v.rate ?? '',
+                  },
+                ];
+              })
+            : [],
+        special_price_count:
+          s.special_price && typeof s.special_price === 'object'
+            ? Object.keys(s.special_price).length
+            : 0,
         stock: s.stock,
         jan_code: s.jan_code,
       }));
@@ -185,8 +196,13 @@ export function useProductDetail(productId: string | undefined) {
         recommended_customers: recommended,
         bcart_sets: bcartSets,
       });
-      setLoading(false);
-    })();
+    })()
+      .catch((e: any) => {
+        console.warn('[useProductDetail]', e?.message ?? String(e));
+      })
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
 
     return () => {
       mounted = false;

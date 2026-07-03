@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 
 import { supabase } from '@/lib/supabase';
@@ -18,9 +18,14 @@ export type NotificationRow = {
 export function useNotifications(session: Session | null) {
   const [rows, setRows] = useState<NotificationRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  // session オブジェクト自体を依存にすると TOKEN_REFRESHED のたびに再フェッチされるため user.id で見る
+  const userId = session?.user.id;
 
   useEffect(() => {
-    if (!session) {
+    if (!userId) {
       setRows([]);
       setLoading(false);
       return;
@@ -28,14 +33,23 @@ export function useNotifications(session: Session | null) {
     let mounted = true;
 
     (async () => {
-      const { data, error } = await supabase
+      setLoading(true);
+      setError(null);
+
+      const { data, error: qerr } = await supabase
         .from('notifications')
         .select('id, type, title, body, link_to, read_at, created_at')
-        .eq('ranger_id', session.user.id)
-        .order('created_at', { ascending: false });
+        .eq('ranger_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(50);
 
       if (!mounted) return;
-      if (error) console.warn('[useNotifications]', error.message);
+      if (qerr) {
+        console.warn('[useNotifications]', qerr.message);
+        setError(qerr.message);
+        setLoading(false);
+        return;
+      }
       setRows((data as NotificationRow[]) ?? []);
       setLoading(false);
     })();
@@ -43,7 +57,8 @@ export function useNotifications(session: Session | null) {
     return () => {
       mounted = false;
     };
-  }, [session]);
+  }, [userId, reloadKey]);
 
-  return { rows, loading };
+  const reload = useCallback(() => setReloadKey((k) => k + 1), []);
+  return { rows, loading, error, reload };
 }

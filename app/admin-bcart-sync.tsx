@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 
+import { AdminGuard } from '@/components/admin/AdminGuard';
 import { Screen } from '@/components/ranger/Screen';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -62,7 +63,7 @@ function relativeTime(iso: string | null) {
 
 export default function AdminBcartSyncScreen() {
   const { session } = useAuth();
-  const { profile } = useProfile(session);
+  const { profile, loading: profileLoading } = useProfile(session);
   const isAdmin = profile?.role === 'admin';
 
   const { data, loading, error, reload } = useBcartSync();
@@ -72,12 +73,8 @@ export default function AdminBcartSyncScreen() {
   const [showLogs, setShowLogs] = useState(false);
   const [showLinked, setShowLinked] = useState(true);
 
-  if (!isAdmin) {
-    return (
-      <Screen back>
-        <Text style={styles.errorText}>管理者のみ利用可能です</Text>
-      </Screen>
-    );
+  if (profileLoading || !isAdmin) {
+    return <AdminGuard loading={profileLoading} />;
   }
 
   return (

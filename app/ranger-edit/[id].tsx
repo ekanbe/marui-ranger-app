@@ -2,6 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { AdminGuard } from '@/components/admin/AdminGuard';
 import { Screen } from '@/components/ranger/Screen';
 import { Button } from '@/components/ui/Button';
 import { SectionTitle } from '@/components/ui/SectionTitle';
@@ -18,7 +19,7 @@ const RANKS = ['bronze', 'silver', 'gold', 'platinum'] as const;
 export default function RangerEditScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { session } = useAuth();
-  const { profile } = useProfile(session);
+  const { profile, loading: profileLoading } = useProfile(session);
   const isAdmin = profile?.role === 'admin';
   const { detail, loading } = useRangerDetail(id);
 
@@ -73,6 +74,10 @@ export default function RangerEditScreen() {
     router.back();
   }
 
+  if (profileLoading || !isAdmin) {
+    return <AdminGuard loading={profileLoading} />;
+  }
+
   if (loading) {
     return (
       <Screen back>
@@ -80,14 +85,6 @@ export default function RangerEditScreen() {
           <ShimmerCard />
           <ShimmerCard />
         </View>
-      </Screen>
-    );
-  }
-
-  if (!isAdmin) {
-    return (
-      <Screen back>
-        <Text style={styles.error}>管理者のみ利用可能です</Text>
       </Screen>
     );
   }

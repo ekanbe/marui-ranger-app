@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { AdminGuard } from '@/components/admin/AdminGuard';
 import { Screen } from '@/components/ranger/Screen';
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
@@ -31,18 +32,14 @@ function matchesFilter(r: BcartEstimate, f: Filter): boolean {
 
 export default function AdminBcartEstimatesScreen() {
   const { session } = useAuth();
-  const { profile } = useProfile(session);
+  const { profile, loading: profileLoading } = useProfile(session);
   const isAdmin = profile?.role === 'admin';
 
   const { rows, summary, loading, error, reload } = useBcartEstimates();
   const [filter, setFilter] = useState<Filter>('pending');
 
-  if (!isAdmin) {
-    return (
-      <Screen back>
-        <Text style={styles.error}>管理者のみ利用可能です</Text>
-      </Screen>
-    );
+  if (profileLoading || !isAdmin) {
+    return <AdminGuard loading={profileLoading} />;
   }
 
   const filtered = rows.filter((r) => matchesFilter(r, filter));

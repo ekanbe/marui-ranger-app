@@ -67,7 +67,10 @@ export default function NewCustomerScreen() {
       return;
     }
 
-    await supabase.from('customer_ranger_assignments').insert({
+    // 後続 INSERT の失敗は登録自体を止めないが、ユーザーに通知する
+    const followUpErrors: string[] = [];
+
+    const { error: assignErr } = await supabase.from('customer_ranger_assignments').insert({
       customer_id: customer.id,
       ranger_id: session.user.id,
       role: 'primary',
@@ -75,21 +78,29 @@ export default function NewCustomerScreen() {
       reason: '新規登録',
       created_by: session.user.id,
     });
+    if (assignErr) followUpErrors.push(`担当割当: ${assignErr.message}`);
 
     if (pains.length > 0) {
-      await supabase.from('customer_attributes').insert(
+      const { error: attrErr } = await supabase.from('customer_attributes').insert(
         pains.map((p) => ({
           customer_id: customer.id,
           attribute_key: 'pain_point',
           attribute_value: p,
         }))
       );
+      if (attrErr) followUpErrors.push(`悲鳴タグ: ${attrErr.message}`);
     }
 
-    await supabase.rpc('fn_generate_recommendations', { p_customer_id: customer.id });
+    const { error: recErr } = await supabase.rpc('fn_generate_recommendations', {
+      p_customer_id: customer.id,
+    });
+    if (recErr) followUpErrors.push(`おすすめ生成: ${recErr.message}`);
 
     setSubmitting(false);
-    const msg = `🎉 ${name} を登録しました`;
+    const msg =
+      followUpErrors.length > 0
+        ? `🎉 ${name} を登録しました\n\n⚠️ ただし一部の付随情報の登録に失敗しました:\n${followUpErrors.join('\n')}`
+        : `🎉 ${name} を登録しました`;
     if (Platform.OS === 'web') {
       if (typeof window !== 'undefined') window.alert(msg);
     } else {

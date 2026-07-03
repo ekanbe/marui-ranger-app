@@ -2,13 +2,14 @@ import { Image } from 'expo-image';
 import { useState } from 'react';
 import { Alert, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { AdminGuard } from '@/components/admin/AdminGuard';
 import { Screen } from '@/components/ranger/Screen';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { SectionTitle } from '@/components/ui/SectionTitle';
 import { ShimmerList } from '@/components/ui/Shimmer';
-import { Accent, Brand, Ink, Radius } from '@/constants/theme';
+import { Ink, Radius } from '@/constants/theme';
 import { useAuth } from '@/hooks/use-auth';
 import { usePendingApprovals, type PendingOrder } from '@/hooks/use-pending-approvals';
 import { useProfile } from '@/hooks/use-profile';
@@ -17,21 +18,17 @@ import { supabase } from '@/lib/supabase';
 
 export default function ApprovalsScreen() {
   const { session } = useAuth();
-  const { profile } = useProfile(session);
+  const { profile, loading: profileLoading } = useProfile(session);
   const isAdmin = profile?.role === 'admin';
-  const { orders, loading, reload } = usePendingApprovals(session);
+  const { orders, loading, error: loadError, reload } = usePendingApprovals(session);
 
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [rejecting, setRejecting] = useState<PendingOrder | null>(null);
   const [rejectReason, setRejectReason] = useState('');
 
-  if (!isAdmin) {
-    return (
-      <Screen back>
-        <Text style={styles.error}>管理者のみ利用可能です</Text>
-      </Screen>
-    );
+  if (profileLoading || !isAdmin) {
+    return <AdminGuard loading={profileLoading} />;
   }
 
   async function approve(order: PendingOrder) {
@@ -136,6 +133,14 @@ export default function ApprovalsScreen() {
       <View style={{ marginTop: 16 }}>
         {loading ? (
           <ShimmerList count={3} />
+        ) : loadError ? (
+          <EmptyState
+            icon="⚠️"
+            title="読み込みに失敗しました"
+            message={loadError}
+            actionLabel="再読み込み"
+            onAction={reload}
+          />
         ) : orders.length === 0 ? (
           <EmptyState
             icon="✅"
@@ -236,6 +241,3 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
-
-void Accent;
-void Brand;

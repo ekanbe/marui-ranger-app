@@ -5,6 +5,7 @@ import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, Vi
 import { Screen } from '@/components/ranger/Screen';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { ShimmerCard } from '@/components/ui/Shimmer';
 import { Accent, Brand, Ink, Radius } from '@/constants/theme';
 import { useAuth } from '@/hooks/use-auth';
@@ -27,7 +28,7 @@ export default function QuoteRequestNewScreen() {
   const productId = params.product_id;
 
   const { session } = useAuth();
-  const { detail } = useProductDetail(productId);
+  const { detail, loading: detailLoading } = useProductDetail(productId);
   const { customers, loading: customersLoading } = useCustomers();
 
   const [customerId, setCustomerId] = useState<string | null>(null);
@@ -53,12 +54,26 @@ export default function QuoteRequestNewScreen() {
       .slice(0, 30);
   }, [customers, customerQuery]);
 
-  if (!productId || !detail) {
+  if (detailLoading) {
     return (
       <Screen back>
         <View style={{ gap: 12 }}>
           <ShimmerCard />
         </View>
+      </Screen>
+    );
+  }
+
+  if (!productId || !detail) {
+    return (
+      <Screen back>
+        <EmptyState
+          icon="📦"
+          title="商品が見つかりません"
+          message="商品が削除されたか、リンクが無効になっている可能性があります"
+          actionLabel="戻る"
+          onAction={() => router.back()}
+        />
       </Screen>
     );
   }
@@ -100,7 +115,7 @@ export default function QuoteRequestNewScreen() {
     setSubmitting(false);
     if (res.ok) {
       notify('✅ 見積依頼を起票しました。管理者の承認をお待ちください。');
-      router.back();
+      router.replace('/my-quote-requests' as any);
     } else {
       notify('エラー: ' + res.error);
     }
@@ -225,7 +240,10 @@ export default function QuoteRequestNewScreen() {
             style={styles.input}
             keyboardType="numeric"
           />
-          {standardPrice != null && Number(requestedPrice) > 0 ? (
+          {standardPrice != null &&
+          standardPrice > 0 &&
+          Number(requestedPrice) > 0 &&
+          Number(requestedPrice) < standardPrice ? (
             <Text style={styles.discountHint}>
               標準より{' '}
               <Text style={styles.discountValue}>
@@ -334,5 +352,3 @@ const styles = StyleSheet.create({
   discountValue: { color: Accent.red, fontWeight: '800' },
   reasonHint: { fontSize: 10, color: Ink[500], marginBottom: 6 },
 });
-
-void Accent;

@@ -37,7 +37,7 @@ function fmt(ts: string | null, includeTime = true) {
 
 export default function ShowroomScreen() {
   const { session } = useAuth();
-  const { items, loading, reload } = useShowroom(session);
+  const { items, loading, error, reload } = useShowroom(session);
 
   const upcoming = items.filter((s) => s.status !== 'visited' && s.status !== 'cancelled');
   const past = items.filter((s) => s.status === 'visited');
@@ -76,6 +76,14 @@ export default function ShowroomScreen() {
 
       {loading ? (
         <ShimmerList count={3} />
+      ) : error ? (
+        <EmptyState
+          icon="⚠️"
+          title="読み込みに失敗しました"
+          message={error}
+          actionLabel="再読み込み"
+          onAction={reload}
+        />
       ) : (
         <>
           <SectionTitle title="予定" caption={`${upcoming.length} 件`} />
