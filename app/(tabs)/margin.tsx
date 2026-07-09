@@ -1,4 +1,3 @@
-import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { Platform, StyleSheet, Text, View } from 'react-native';
 
@@ -9,6 +8,7 @@ import { Card } from '@/components/ui/Card';
 import { HeroCard } from '@/components/ui/HeroCard';
 import { KpiCard } from '@/components/ui/KpiCard';
 import { Progress } from '@/components/ui/Progress';
+import { CustomerThumb } from '@/components/ui/CustomerThumb';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { SectionTitle } from '@/components/ui/SectionTitle';
 import { ShimmerCard } from '@/components/ui/Shimmer';
@@ -89,69 +89,33 @@ export default function MarginScreen() {
   const goalProgressPct = kpis?.goalProgressPct ?? 0;
   const remainingToGoalJpy = kpis?.remainingToGoalJpy ?? 0;
 
-  // ステータス別に集計
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const thisMonth = (c: typeof commissions[number]) => new Date(c.ordered_at) >= monthStart;
+  const currentMonthLabel = `${now.getMonth() + 1}月のマージン`;
 
-  const pendingTotal   = commissions.filter((c) => c.status === 'pending').reduce((s, c) => s + c.ranger_amount_jpy, 0);
-  const confirmedTotal = commissions.filter((c) => c.status === 'confirmed').reduce((s, c) => s + c.ranger_amount_jpy, 0);
-  const paidTotal      = commissions.filter((c) => c.status === 'paid').reduce((s, c) => s + c.ranger_amount_jpy, 0);
-  const pendingCount   = commissions.filter((c) => c.status === 'pending').length;
+  const paidTotal = commissions.filter((c) => c.status === 'paid').reduce((s, c) => s + c.ranger_amount_jpy, 0);
 
-  const confirmedThisMonth = commissions
-    .filter((c) => c.status === 'confirmed' && thisMonth(c))
-    .reduce((s, c) => s + c.ranger_amount_jpy, 0);
-
-  // ── ソース別ブレイクダウン（今月分） ──
   const thisMonthCommissions = commissions.filter(thisMonth);
-  const ecThisMonth = thisMonthCommissions.filter((c) => c.source === 'ec');
-  const bcartThisMonth = thisMonthCommissions.filter((c) => c.source === 'bcart');
-  const manualThisMonth = thisMonthCommissions.filter((c) => c.source === 'manual' || c.source === 'showroom');
-  const ecThisMonthJpy = ecThisMonth.reduce((s, c) => s + c.ranger_amount_jpy, 0);
-  const bcartThisMonthJpy = bcartThisMonth.reduce((s, c) => s + c.ranger_amount_jpy, 0);
-  const manualThisMonthJpy = manualThisMonth.reduce((s, c) => s + c.ranger_amount_jpy, 0);
-  const totalThisMonthJpy = ecThisMonthJpy + bcartThisMonthJpy + manualThisMonthJpy;
-  const ecSharePct = totalThisMonthJpy > 0 ? ecThisMonthJpy / totalThisMonthJpy : 0;
-  const bcartSharePct = totalThisMonthJpy > 0 ? bcartThisMonthJpy / totalThisMonthJpy : 0;
 
-  const monthlyTrend = kpis?.monthlyTrend ?? [];
-  const maxTrend = Math.max(...monthlyTrend.map((m) => m.sales), 1);
+  const marginTrend = kpis?.marginTrend ?? [];
+  const maxMarginTrend = Math.max(...marginTrend.map((m) => m.margin), 1);
 
   return (
     <Screen>
       <Text style={styles.title}>マージン</Text>
 
       <HeroCard
-        label="今月の確定マージン"
-        value={jpy(confirmedThisMonth)}
+        label={currentMonthLabel}
+        value={jpy(estimatedMarginJpy)}
         tone="emerald"
         style={{ marginBottom: 14 }}
       >
         <Text style={styles.heroSub}>
-          見込み {jpy(estimatedMarginJpy)}（今月売上の2%）
-          {'\n'}
           {estimatedMarginDeltaJpy >= 0 ? '↑' : '↓'} {jpy(Math.abs(estimatedMarginDeltaJpy))}（前月比）
         </Text>
       </HeroCard>
 
-      {/* ステータス別3カード */}
-      <View style={styles.grid}>
-        <KpiCard
-          label="承認待ち"
-          value={jpy(pendingTotal)}
-          tone="amber"
-          delta={`${pendingCount} 件`}
-          style={{ flex: 1 }}
-        />
-        <KpiCard
-          label="受取予定"
-          value={jpy(confirmedTotal)}
-          tone="emerald"
-          delta="確定・入金待ち"
-          style={{ flex: 1 }}
-        />
-      </View>
       <View style={styles.grid}>
         {/* cumulativeMarginJpy は受取済(paid)を含む全期間マージンなので paidTotal を足すと二重計上になる */}
         <KpiCard
@@ -163,73 +127,19 @@ export default function MarginScreen() {
         />
       </View>
 
-      {/* ソース別ブレイクダウン（今月） */}
-      {thisMonthCommissions.length > 0 ? (
-        <>
-          <SectionTitle title="今月の収入源" caption={`全 ${thisMonthCommissions.length} 件の報酬`} />
-          <Card variant="surface" padding={16} style={{ marginBottom: 14 }}>
-            <View style={styles.sourceRow}>
-              <View style={styles.sourceLeft}>
-                <View style={[styles.sourceDot, { backgroundColor: Brand.gold }]} />
-                <Text style={styles.sourceLabel}>🔗 EC継続収入</Text>
-              </View>
-              <View style={styles.sourceRight}>
-                <Text style={styles.sourceAmount}>{jpy(ecThisMonthJpy)}</Text>
-                <Text style={styles.sourceCount}>{ecThisMonth.length}件</Text>
-              </View>
-            </View>
-            <View style={styles.sourceBar}>
-              <View style={[styles.sourceBarFill, { width: `${Math.round(ecSharePct * 100)}%` }]} />
-            </View>
-            <Text style={styles.sourceShare}>
-              今月の {Math.round(ecSharePct * 100)}% が foodboat.jp の自動収入
-            </Text>
-
-            <View style={styles.sourceDivider} />
-
-            <View style={styles.sourceRow}>
-              <View style={styles.sourceLeft}>
-                <View style={[styles.sourceDot, { backgroundColor: Brand.navy }]} />
-                <Text style={styles.sourceLabel}>🏢 直接取引（Bカート）</Text>
-              </View>
-              <View style={styles.sourceRight}>
-                <Text style={styles.sourceAmount}>{jpy(bcartThisMonthJpy)}</Text>
-                <Text style={styles.sourceCount}>{bcartThisMonth.length}件</Text>
-              </View>
-            </View>
-            <View style={styles.sourceBar}>
-              <View style={[styles.sourceBarFill, { width: `${Math.round(bcartSharePct * 100)}%`, backgroundColor: Brand.navy }]} />
-            </View>
-
-            <View style={styles.sourceDivider} />
-
-            <View style={styles.sourceRow}>
-              <View style={styles.sourceLeft}>
-                <View style={[styles.sourceDot, { backgroundColor: Ink[600] }]} />
-                <Text style={styles.sourceLabel}>📝 手動入力</Text>
-              </View>
-              <View style={styles.sourceRight}>
-                <Text style={styles.sourceAmount}>{jpy(manualThisMonthJpy)}</Text>
-                <Text style={styles.sourceCount}>{manualThisMonth.length}件</Text>
-              </View>
-            </View>
-          </Card>
-        </>
-      ) : null}
-
-      {/* 月別売上推移 */}
-      <SectionTitle title="月別売上推移" caption="過去6ヶ月" />
+      {/* マージン推移 */}
+      <SectionTitle title="マージン推移" caption="2026年4月開始〜" />
       <Card variant="surface" padding={20} style={{ marginBottom: 14 }}>
-        {monthlyTrend.length === 0 ? (
+        {marginTrend.length === 0 ? (
           <Text style={styles.empty}>推移データがありません</Text>
         ) : (
           <View style={styles.chartRow}>
-            {monthlyTrend.map((m) => (
+            {marginTrend.map((m) => (
               <View key={m.month} style={styles.chartCol}>
                 <View style={styles.barWrap}>
-                  <View style={[styles.bar, { height: Math.max(8, (m.sales / maxTrend) * 120) }]} />
+                  <View style={[styles.bar, { height: Math.max(8, (m.margin / maxMarginTrend) * 120) }]} />
                 </View>
-                <Text style={styles.chartValue}>{Math.round(m.sales / 10000)}万</Text>
+                <Text style={styles.chartValue}>{jpy(m.margin)}</Text>
                 <Text style={styles.chartLabel}>{parseInt(m.month.slice(-2), 10)}月</Text>
               </View>
             ))}
@@ -237,24 +147,18 @@ export default function MarginScreen() {
         )}
       </Card>
 
-      {/* 受注・報酬内訳 */}
-      <SectionTitle title="受注・報酬内訳" caption={`${commissions.length} 件`} />
+      {/* 受注・報酬内訳（今月分） */}
+      <SectionTitle title={`${now.getMonth() + 1}月の受注・報酬内訳`} caption={`${thisMonthCommissions.length} 件`} />
       <Card variant="surface" padding={0} style={{ marginBottom: 14, overflow: 'hidden' }}>
-        {commissions.length === 0 ? (
+        {thisMonthCommissions.length === 0 ? (
           <Text style={styles.empty}>報酬データがありません</Text>
         ) : (
-          commissions.map((c, i) => (
+          thisMonthCommissions.map((c, i) => (
             <View
               key={c.id}
-              style={[styles.orderRow, i === commissions.length - 1 && { borderBottomWidth: 0 }]}
+              style={[styles.orderRow, i === thisMonthCommissions.length - 1 && { borderBottomWidth: 0 }]}
             >
-              <View style={styles.orderThumbWrap}>
-                {c.customer_image_url ? (
-                  <Image source={{ uri: c.customer_image_url }} style={styles.orderThumb} contentFit="cover" />
-                ) : (
-                  <View style={[styles.orderThumb, styles.orderThumbPlaceholder]}><Text style={{ fontSize: 18 }}>🏪</Text></View>
-                )}
-              </View>
+              <CustomerThumb imageUrl={c.customer_image_url} size={40} radius={10} />
               <View style={{ flex: 1, minWidth: 0 }}>
                 <View style={styles.orderNameRow}>
                   <Text style={styles.orderName} numberOfLines={1}>{c.product_name}</Text>
@@ -306,7 +210,7 @@ const styles = StyleSheet.create({
   chartRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
   chartCol: { alignItems: 'center', flex: 1 },
   barWrap: { height: 120, justifyContent: 'flex-end' },
-  bar: { width: 20, backgroundColor: Brand.navy, borderRadius: 6, minHeight: 4 },
+  bar: { width: 20, backgroundColor: Accent.emerald, borderRadius: 6, minHeight: 4 },
   chartValue: { fontSize: 10, color: Ink[700], marginTop: 6, fontWeight: '700' },
   chartLabel: { fontSize: 9, color: Ink[500], marginTop: 2 },
 
@@ -319,15 +223,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderBottomWidth: 1,
     borderBottomColor: Ink[100],
-  },
-  orderThumbWrap: {
-    width: 40, height: 40, borderRadius: 10, overflow: 'hidden',
-    backgroundColor: Ink[100],
-  },
-  orderThumb: { width: 40, height: 40 },
-  orderThumbPlaceholder: {
-    alignItems: 'center', justifyContent: 'center',
-    backgroundColor: 'rgba(30,58,95,0.04)',
   },
   orderName: { fontSize: 13, fontWeight: '700', color: Ink[900] },
   orderNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
@@ -351,24 +246,6 @@ const styles = StyleSheet.create({
   bcartTagText: { color: Brand.navy, fontSize: 9, fontWeight: '800', letterSpacing: 0.5 },
   orderCust: { fontSize: 11, color: Ink[500], marginTop: 2 },
   orderAmt: { fontSize: 14, fontWeight: '800', color: Ink[900] },
-
-  // ソース別ブレイクダウン
-  sourceRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  sourceLeft: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  sourceRight: { alignItems: 'flex-end' },
-  sourceDot: { width: 10, height: 10, borderRadius: 5 },
-  sourceLabel: { fontSize: 13, fontWeight: '700', color: Ink[900] },
-  sourceAmount: { fontSize: 15, fontWeight: '800', color: Ink[900] },
-  sourceCount: { fontSize: 10, color: Ink[500], marginTop: 1 },
-  sourceBar: {
-    height: 6, backgroundColor: Ink[100], borderRadius: 3,
-    marginTop: 10, overflow: 'hidden',
-  },
-  sourceBarFill: {
-    height: 6, backgroundColor: Brand.gold, borderRadius: 3,
-  },
-  sourceShare: { fontSize: 11, color: Ink[600], marginTop: 6, fontWeight: '600' },
-  sourceDivider: { height: 1, backgroundColor: Ink[100], marginVertical: 12 },
 
   goalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 },
   goalLabel: { fontSize: 12, color: Ink[500], fontWeight: '600' },

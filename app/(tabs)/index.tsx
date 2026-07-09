@@ -676,7 +676,7 @@ export default function HomeScreen() {
       </View>
 
       {/* 月別売上推移 */}
-      <SectionTitle title="月別売上推移" caption="過去6ヶ月" />
+      <SectionTitle title="月別売上推移" caption="2026年4月開始〜" />
       <Card variant="surface" padding={20} style={{ marginBottom: 14 }}>
         {k.monthlyTrend.length === 0 ? (
           <Text style={styles.empty}>推移データがありません</Text>

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 
+import { PROGRAM_START_MONTH } from '@/lib/program';
 import { fetchAll, supabase } from '@/lib/supabase';
 
 export type CommissionStatus = 'pending' | 'confirmed' | 'paid';
@@ -103,7 +104,8 @@ export function useCommissions(session: Session | null) {
         };
       });
 
-      setRows(result);
+      // レンジャー制度開始(2026年4月)より前の発注に紐づくマージンは表示・集計対象外
+      setRows(result.filter((r) => r.ordered_at >= PROGRAM_START_MONTH));
       setLoading(false);
     })();
 

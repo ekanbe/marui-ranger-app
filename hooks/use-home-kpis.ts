@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 
+import { PROGRAM_START_MONTH } from '@/lib/program';
 import { supabase } from '@/lib/supabase';
 
 export type HomeKpis = {
@@ -19,6 +20,7 @@ export type HomeKpis = {
   goalProgressPct: number;
   remainingToGoalJpy: number;
   monthlyTrend: { month: string; sales: number }[];
+  marginTrend: { month: string; margin: number }[];
 };
 
 type SummaryRow = {
@@ -82,6 +84,11 @@ export function useHomeKpis(session: Session | null) {
       const lastKey = monthKey(lastDate);
 
       const rows = (summary.data ?? []) as SummaryRow[];
+
+      // レンジャー制度は2026年4月開始。それ以前のVIPS取込み分(1〜3月)は
+      // 推移・累計の集計から除外する（month='2026-04-01'形式との文字列比較）
+      const programRows = rows.filter((r) => (r.month ?? '') >= PROGRAM_START_MONTH);
+
       const t = rows.find((r) => (r.month ?? '').startsWith(thisKey));
       const l = rows.find((r) => (r.month ?? '').startsWith(lastKey));
 
@@ -90,22 +97,26 @@ export function useHomeKpis(session: Session | null) {
       const monthMargin = Number(t?.ranger_commission_jpy ?? 0);
       const prevMargin = Number(l?.ranger_commission_jpy ?? 0);
       // ranger_commission_jpy は pending/confirmed/paid すべての合計（= paid を含む）
-      const cumulativeMargin = rows.reduce((s, r) => s + Number(r.ranger_commission_jpy ?? 0), 0);
-      const cumulativePaid = rows.reduce((s, r) => s + Number(r.paid_commission_jpy ?? 0), 0);
+      const cumulativeMargin = programRows.reduce((s, r) => s + Number(r.ranger_commission_jpy ?? 0), 0);
+      const cumulativePaid = programRows.reduce((s, r) => s + Number(r.paid_commission_jpy ?? 0), 0);
       const monthlyGoal = Number((goal.data as { monthly_goal_jpy?: number } | null)?.monthly_goal_jpy ?? 0);
 
-      // 過去6ヶ月のトレンド（古→新）
-      const monthlyTrend = rows
-        .filter((r) => r.month)
-        .slice(0, 6)
-        .reverse()
-        .map((r) => {
-          const d = new Date(r.month as string);
-          return {
-            month: `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}`,
-            sales: Number(r.sales_jpy ?? 0),
-          };
-        });
+      // 制度開始以降・直近6ヶ月のトレンド（古→新）
+      const recentRows = programRows.filter((r) => r.month).slice(0, 6).reverse();
+      const monthlyTrend = recentRows.map((r) => {
+        const d = new Date(r.month as string);
+        return {
+          month: `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}`,
+          sales: Number(r.sales_jpy ?? 0),
+        };
+      });
+      const marginTrend = recentRows.map((r) => {
+        const d = new Date(r.month as string);
+        return {
+          month: `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}`,
+          margin: Number(r.ranger_commission_jpy ?? 0),
+        };
+      });
 
       setKpis({
         monthSalesJpy: monthSales,
@@ -121,6 +132,7 @@ export function useHomeKpis(session: Session | null) {
         goalProgressPct: monthlyGoal > 0 ? Math.min(1, monthSales / monthlyGoal) : 0,
         remainingToGoalJpy: Math.max(0, monthlyGoal - monthSales),
         monthlyTrend,
+        marginTrend,
       });
       setLoading(false);
     })();
