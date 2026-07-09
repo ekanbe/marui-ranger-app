@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ShowroomInviteModal } from '@/components/showroom/ShowroomInviteModal';
 import { Screen } from '@/components/ranger/Screen';
@@ -15,6 +15,7 @@ import { deriveStatus, type DerivedStatus } from '@/hooks/use-customers';
 import { useCustomerDetail } from '@/hooks/use-customer-detail';
 import { useCustomerKarte } from '@/hooks/use-customer-karte';
 import { useCustomerOrders } from '@/hooks/use-customer-orders';
+import { deleteMeetingNote, useMeetingNotes } from '@/hooks/use-meeting-notes';
 import { daysSince, jpy, shortDate } from '@/lib/format';
 import { SALES_PHASES, type SalesPhase, getPhaseLabel, getPhaseTone } from '@/lib/sales-phase';
 import { supabase } from '@/lib/supabase';
@@ -92,8 +93,28 @@ export default function CustomerDetailScreen() {
   const { detail, loading, refetch } = useCustomerDetail(id);
   const { orders } = useCustomerOrders(id, 10);
   const { karte } = useCustomerKarte(id);
+  const { notes, reload: reloadNotes } = useMeetingNotes(id);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [phaseUpdating, setPhaseUpdating] = useState(false);
+
+  function confirmDeleteNote(noteId: string) {
+    const doDelete = async () => {
+      try {
+        await deleteMeetingNote(noteId);
+        reloadNotes();
+      } catch (e: any) {
+        Alert.alert('削除失敗', e?.message ?? '議事録の削除に失敗しました');
+      }
+    };
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && window.confirm('この議事録を削除しますか？')) doDelete();
+    } else {
+      Alert.alert('議事録を削除', 'この議事録を削除しますか？', [
+        { text: 'キャンセル', style: 'cancel' },
+        { text: '削除', style: 'destructive', onPress: doDelete },
+      ]);
+    }
+  }
 
   async function updateSalesPhase(next: SalesPhase) {
     if (!detail || phaseUpdating) return;
@@ -368,6 +389,49 @@ export default function CustomerDetailScreen() {
         </Card>
       )}
 
+      {/* 商談ログ（議事録） */}
+      <SectionTitle title="商談ログ" caption={notes.length > 0 ? `${notes.length} 件` : 'MTG議事録'} />
+      <View style={{ marginBottom: 10 }}>
+        <Button
+          label="＋ 議事録を追加"
+          variant="secondary"
+          size="md"
+          fullWidth
+          onPress={() =>
+            router.push({ pathname: '/meeting-note-new/[customerId]', params: { customerId: detail.id } })
+          }
+        />
+      </View>
+      {notes.length === 0 ? (
+        <Card variant="muted" padding={16}>
+          <Text style={styles.emptyInline}>
+            まだ議事録がありません。商談のたびに記録して、顧客の状況を積み上げましょう
+          </Text>
+        </Card>
+      ) : (
+        <View style={{ gap: 10, marginBottom: 18 }}>
+          {notes.map((n) => (
+            <Card key={n.id} variant="surface" padding={14}>
+              <View style={styles.noteHeader}>
+                <Text style={styles.noteDate}>{shortDate(n.met_at)}</Text>
+                {n.title ? <Text style={styles.noteTitle} numberOfLines={1}>{n.title}</Text> : <View style={{ flex: 1 }} />}
+                <Pressable onPress={() => confirmDeleteNote(n.id)} hitSlop={8}>
+                  <Text style={styles.noteDelete}>削除</Text>
+                </Pressable>
+              </View>
+              {n.attendees ? <Text style={styles.noteAttendees}>👤 {n.attendees}</Text> : null}
+              <Text style={styles.noteBody}>{n.body}</Text>
+              {n.next_action ? (
+                <View style={styles.nextActionBox}>
+                  <Text style={styles.nextActionLabel}>次アクション</Text>
+                  <Text style={styles.nextActionText}>{n.next_action}</Text>
+                </View>
+              ) : null}
+            </Card>
+          ))}
+        </View>
+      )}
+
       {/* 提案候補 */}
       <SectionTitle title="次の提案候補" caption="適合度順" />
       {suggestions.length === 0 ? (
@@ -562,6 +626,23 @@ const styles = StyleSheet.create({
   karteEditBtnText: { fontSize: 12, color: Ink[700], fontWeight: '700' },
   karteEmptyText: { fontSize: 13, color: Ink[700], fontWeight: '700', textAlign: 'center' },
   karteEmptySub: { fontSize: 11, color: Ink[500], textAlign: 'center', marginTop: 4, lineHeight: 16 },
+
+  noteHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
+  noteDate: { fontSize: 11, color: Ink[500], fontWeight: '800' },
+  noteTitle: { fontSize: 13, fontWeight: '800', color: Ink[900], flex: 1 },
+  noteDelete: { fontSize: 11, color: Ink[400], fontWeight: '700' },
+  noteAttendees: { fontSize: 11, color: Ink[600], marginBottom: 6 },
+  noteBody: { fontSize: 13, color: Ink[800], lineHeight: 19 },
+  nextActionBox: {
+    marginTop: 10,
+    padding: 10,
+    borderRadius: Radius.sm,
+    backgroundColor: 'rgba(201,168,118,0.10)',
+    borderLeftWidth: 3,
+    borderLeftColor: Brand.gold,
+  },
+  nextActionLabel: { fontSize: 10, color: Brand.gold, fontWeight: '800', letterSpacing: 0.5, marginBottom: 3 },
+  nextActionText: { fontSize: 12, color: Ink[800], lineHeight: 17, fontWeight: '600' },
 
   phaseRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   phaseBtn: {
