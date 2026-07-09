@@ -109,7 +109,10 @@ export default function ProductsScreen() {
                 ) : null}
               </View>
               <View style={styles.costBox}>
-                <Text style={styles.cost}>{jpy(p.cost_price_jpy)}</Text>
+                {/* バラ原価は小数まで表示(整数に丸めるとケース原価との検算が合わなくなる) */}
+                <Text style={styles.cost}>
+                  ¥{p.cost_price_jpy.toLocaleString('ja-JP', { maximumFractionDigits: 2 })}
+                </Text>
                 <Text style={styles.costUnit}>バラ原価</Text>
                 {p.case_cost_jpy != null ? (
                   <>
