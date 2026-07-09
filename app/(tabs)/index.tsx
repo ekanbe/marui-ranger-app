@@ -1,7 +1,9 @@
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { AddTodayTaskModal } from '@/components/home/AddTodayTaskModal';
 import { Screen } from '@/components/ranger/Screen';
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
@@ -43,6 +45,7 @@ const ZERO_KPIS: HomeKpis = {
   goalProgressPct: 0,
   remainingToGoalJpy: 0,
   monthlyTrend: [],
+  marginTrend: [],
 };
 
 // ============================================================
@@ -436,7 +439,22 @@ export default function HomeScreen() {
   const { profile, loading: profileLoading } = useProfile(session);
   const { kpis, loading: kpisLoading, error: kpisError, reload: reloadKpis } = useHomeKpis(session);
   const { customers, loading: customersLoading, error: customersError, reload: reloadCustomers } = useCustomers();
-  const { tasks: allTasks } = useTodayTasks(session);
+  const { tasks: allTasks, addCustomTask, completeCustomTask, dismissFollowTask, excludeFollowTask } =
+    useTodayTasks(session);
+
+  function confirmExcludeFollow(customerId: string, title: string) {
+    const name = title.replace(/をフォロー$/, '');
+    const message = `「${name}」をフォロー対象外にします。\n今日やることから外れます（顧客一覧には残ります）。`;
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && window.confirm(message)) excludeFollowTask(customerId);
+    } else {
+      Alert.alert('フォロー対象外にする', message, [
+        { text: 'キャンセル', style: 'cancel' },
+        { text: '対象外にする', style: 'destructive', onPress: () => excludeFollowTask(customerId) },
+      ]);
+    }
+  }
+  const [addTaskOpen, setAddTaskOpen] = useState(false);
   const { ranger: myRanger } = useMyRanger(session);
   const { rows: commissions } = useCommissions(session);
   const { rows: rankingRows } = useRanking(session);
@@ -445,11 +463,12 @@ export default function HomeScreen() {
     isAdmin: false,
   });
 
+  const customTasks = allTasks.filter((t) => t.task_type === 'custom');
   const followTasks = allTasks.filter((t) => t.task_type === 'follow');
   const showroomTasks = allTasks.filter((t) => t.task_type === 'showroom');
   const recommendTasks = allTasks.filter((t) => t.task_type === 'recommend');
-  const remain = Math.max(0, 4 - followTasks.length - showroomTasks.length);
-  const todayTasks = [...followTasks, ...showroomTasks, ...recommendTasks.slice(0, remain)];
+  const remain = Math.max(0, 4 - customTasks.length - followTasks.length - showroomTasks.length);
+  const todayTasks = [...customTasks, ...followTasks, ...showroomTasks, ...recommendTasks.slice(0, remain)];
 
   const displayName = profile?.display_name ?? '';
   const avatarUrl = profile?.avatar_url;
@@ -583,18 +602,6 @@ export default function HomeScreen() {
         style={{ marginBottom: 14 }}
       >
         <QuickAction
-          label="新規受注"
-          iconSource={require('@/assets/icons/action-new-order.png')}
-          dotColor={Accent.emerald}
-          onPress={() => router.push('/(tabs)/customers')}
-        />
-        <QuickAction
-          label="顧客追加"
-          iconSource={require('@/assets/icons/action-add-customer.png')}
-          dotColor={Brand.navy}
-          onPress={() => router.push('/customer-new')}
-        />
-        <QuickAction
           label="ショールーム"
           iconSource={require('@/assets/icons/action-showroom.png')}
           dotColor={Brand.gold}
@@ -667,6 +674,31 @@ export default function HomeScreen() {
           style={styles.gridItem}
         />
       </View>
+
+      {/* 月別売上推移 */}
+      <SectionTitle title="月別売上推移" caption="過去6ヶ月" />
+      <Card variant="surface" padding={20} style={{ marginBottom: 14 }}>
+        {k.monthlyTrend.length === 0 ? (
+          <Text style={styles.empty}>推移データがありません</Text>
+        ) : (
+          <View style={styles.chartRow}>
+            {k.monthlyTrend.map((m) => (
+              <View key={m.month} style={styles.chartCol}>
+                <View style={styles.barWrap}>
+                  <View
+                    style={[
+                      styles.bar,
+                      { height: Math.max(8, (m.sales / Math.max(...k.monthlyTrend.map((t) => t.sales), 1)) * 120) },
+                    ]}
+                  />
+                </View>
+                <Text style={styles.chartValue}>{Math.round(m.sales / 10000)}万</Text>
+                <Text style={styles.chartLabel}>{parseInt(m.month.slice(-2), 10)}月</Text>
+              </View>
+            ))}
+          </View>
+        )}
+      </Card>
 
       {/* 獲得顧客のフェーズ別件数（レンジャー獲得顧客がある時のみ） */}
       {totalAcquired > 0 ? (
@@ -811,7 +843,12 @@ export default function HomeScreen() {
       ) : null}
 
       {/* 今日やること */}
-      <SectionTitle title="今日やること" caption={`${todayTasks.length} 件`} />
+      <SectionTitle
+        title="今日やること"
+        caption={`${todayTasks.length} 件`}
+        action="＋ 追加"
+        onAction={() => setAddTaskOpen(true)}
+      />
       {todayTasks.length === 0 ? (
         <EmptyState
           icon="✅"
@@ -822,9 +859,11 @@ export default function HomeScreen() {
         <View style={{ gap: 10 }}>
           {todayTasks.map((t) => (
             <ListRow
-              key={t.entity_id}
+              key={`${t.task_type}-${t.id ?? t.entity_id}`}
               onPress={() => {
-                if (t.link === 'customers') router.push('/(tabs)/customers');
+                if (t.customer_id) {
+                  router.push({ pathname: '/customer/[id]', params: { id: t.customer_id } });
+                } else if (t.link === 'customers') router.push('/(tabs)/customers');
                 else if (t.link === 'products') router.push('/(tabs)/products');
                 else if (t.link === 'showroom') router.push('/showroom');
               }}
@@ -839,22 +878,54 @@ export default function HomeScreen() {
                           ? 'rgba(239,68,68,0.12)'
                           : t.color === 'amber'
                             ? 'rgba(245,158,11,0.14)'
-                            : 'rgba(16,185,129,0.12)',
+                            : t.color === 'navy'
+                              ? 'rgba(30,58,95,0.10)'
+                              : 'rgba(16,185,129,0.12)',
                     },
                   ]}
                 >
                   <Text style={styles.taskIconText}>
-                    {t.task_type === 'follow' ? '📞' : t.task_type === 'showroom' ? '✨' : '💡'}
+                    {t.task_type === 'follow'
+                      ? '📞'
+                      : t.task_type === 'showroom'
+                        ? '✨'
+                        : t.task_type === 'custom'
+                          ? '📌'
+                          : '💡'}
                   </Text>
                 </View>
               }
               title={t.title}
               subtitle={t.sub}
-              trailing={<Text style={styles.chevron}>›</Text>}
+              trailing={
+                t.task_type === 'custom' && t.id ? (
+                  <Pressable onPress={() => completeCustomTask(t.id!)} hitSlop={8}>
+                    <Text style={styles.taskDone}>✓ 完了</Text>
+                  </Pressable>
+                ) : t.task_type === 'follow' && t.customer_id ? (
+                  <View style={styles.taskActions}>
+                    <Pressable onPress={() => confirmExcludeFollow(t.customer_id!, t.title)} hitSlop={8}>
+                      <Text style={styles.taskExclude}>対象外</Text>
+                    </Pressable>
+                    <Pressable onPress={() => dismissFollowTask(t.customer_id!)} hitSlop={8}>
+                      <Text style={styles.taskDone}>✓ 完了</Text>
+                    </Pressable>
+                  </View>
+                ) : (
+                  <Text style={styles.chevron}>›</Text>
+                )
+              }
             />
           ))}
         </View>
       )}
+
+      <AddTodayTaskModal
+        open={addTaskOpen}
+        onClose={() => setAddTaskOpen(false)}
+        customers={customers}
+        onSubmit={addCustomTask}
+      />
 
       <View style={styles.footerRow}>
         <Image source={require('@/assets/images/icon.png')} style={styles.footerLogo} contentFit="cover" />
@@ -897,6 +968,15 @@ const styles = StyleSheet.create({
   greeting: { fontSize: 11, color: Ink[500], letterSpacing: 1 },
   nameRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 8 },
   name: { fontSize: 18, fontWeight: '800', color: Ink[900] },
+
+  // 月別売上推移
+  chartRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
+  chartCol: { alignItems: 'center', flex: 1 },
+  barWrap: { height: 120, justifyContent: 'flex-end' },
+  bar: { width: 20, backgroundColor: Brand.navy, borderRadius: 6, minHeight: 4 },
+  chartValue: { fontSize: 10, color: Ink[700], marginTop: 6, fontWeight: '700' },
+  chartLabel: { fontSize: 9, color: Ink[500], marginTop: 2 },
+  empty: { padding: 20, textAlign: 'center', color: Ink[500], fontSize: 12 },
 
   // Hero
   heroRow: { flexDirection: 'row', gap: 12, marginTop: 12 },
@@ -971,6 +1051,9 @@ const styles = StyleSheet.create({
   },
   taskIconText: { fontSize: 16 },
   chevron: { fontSize: 22, color: Ink[300], fontWeight: '300' },
+  taskDone: { fontSize: 11, color: Accent.emerald, fontWeight: '800' },
+  taskActions: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  taskExclude: { fontSize: 11, color: Ink[400], fontWeight: '700' },
 
   // Admin ranger rows
   rangerRow: {
