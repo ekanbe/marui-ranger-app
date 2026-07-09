@@ -141,7 +141,12 @@ export function useTodayTasks(session: Session | null) {
       const { error } = await supabase
         .from('follow_dismissals')
         .upsert(
-          { ranger_id: session.user.id, customer_id: customerId, snoozed_until: snoozedUntil },
+          {
+            ranger_id: session.user.id,
+            customer_id: customerId,
+            snoozed_until: snoozedUntil,
+            created_at: new Date().toISOString(), // 対象化時刻を更新(発注による自動復活の基準)
+          },
           { onConflict: 'ranger_id,customer_id' }
         );
       if (!error) reload();
@@ -158,7 +163,12 @@ export function useTodayTasks(session: Session | null) {
       const { error } = await supabase
         .from('follow_dismissals')
         .upsert(
-          { ranger_id: session.user.id, customer_id: customerId, snoozed_until: 'infinity' },
+          {
+            ranger_id: session.user.id,
+            customer_id: customerId,
+            snoozed_until: 'infinity',
+            created_at: new Date().toISOString(), // 対象化時刻を更新(発注による自動復活の基準)
+          },
           { onConflict: 'ranger_id,customer_id' }
         );
       if (!error) reload();

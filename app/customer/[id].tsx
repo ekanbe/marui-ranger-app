@@ -16,6 +16,7 @@ import { useCustomerDetail } from '@/hooks/use-customer-detail';
 import { useCustomerKarte } from '@/hooks/use-customer-karte';
 import { useCustomerOrders } from '@/hooks/use-customer-orders';
 import { deleteMeetingNote, useMeetingNotes } from '@/hooks/use-meeting-notes';
+import { useFollowDismissal } from '@/hooks/use-follow-dismissal';
 import { daysSince, jpy, shortDate } from '@/lib/format';
 import { SALES_PHASES, type SalesPhase, getPhaseLabel, getPhaseTone } from '@/lib/sales-phase';
 import { supabase } from '@/lib/supabase';
@@ -94,8 +95,25 @@ export default function CustomerDetailScreen() {
   const { orders } = useCustomerOrders(id, 10);
   const { karte } = useCustomerKarte(id);
   const { notes, reload: reloadNotes } = useMeetingNotes(id);
+  const { excluded: followExcluded, clear: clearFollowExclusion } = useFollowDismissal(id);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [phaseUpdating, setPhaseUpdating] = useState(false);
+
+  function confirmClearExclusion() {
+    const msg = 'この顧客をフォロー対象に戻します。\n（次に停滞したら「今日やること」に再表示されます）';
+    const run = async () => {
+      const res = await clearFollowExclusion();
+      if (!res.ok) Alert.alert('解除失敗', res.error ?? 'フォロー対象外の解除に失敗しました');
+    };
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && window.confirm(msg)) run();
+    } else {
+      Alert.alert('フォロー対象外を解除', msg, [
+        { text: 'キャンセル', style: 'cancel' },
+        { text: 'フォロー対象に戻す', onPress: run },
+      ]);
+    }
+  }
 
   function confirmDeleteNote(noteId: string) {
     const doDelete = async () => {
@@ -239,6 +257,16 @@ export default function CustomerDetailScreen() {
           </Text>
         </View>
       </View>
+
+      {/* フォロー対象外バー */}
+      {followExcluded ? (
+        <View style={styles.excludedBar}>
+          <Text style={styles.excludedText}>⛔ フォロー対象外に設定中</Text>
+          <Pressable onPress={confirmClearExclusion} hitSlop={8}>
+            <Text style={styles.excludedClear}>解除</Text>
+          </Pressable>
+        </View>
+      ) : null}
 
       {/* アクション */}
       <View style={styles.actionRow}>
@@ -568,6 +596,21 @@ const styles = StyleSheet.create({
   statusBannerSub: { fontSize: 11, color: Ink[600], marginTop: 2 },
 
   actionRow: { flexDirection: 'row', gap: 8, marginBottom: 20 },
+
+  excludedBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: Radius.md,
+    backgroundColor: Ink[100],
+    borderWidth: 1,
+    borderColor: Ink[200],
+    marginBottom: 14,
+  },
+  excludedText: { fontSize: 12, color: Ink[600], fontWeight: '700' },
+  excludedClear: { fontSize: 12, color: Brand.navy, fontWeight: '800' },
 
   painRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 18 },
   emptyInline: { fontSize: 12, color: Ink[500], textAlign: 'center' },
