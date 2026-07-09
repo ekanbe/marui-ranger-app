@@ -40,20 +40,34 @@ const ORDER_STATUS_TONE: Record<OrderStatus, 'amber' | 'emerald' | 'navy' | 'neu
   cancelled: 'neutral',
 };
 
-const SIZE_LABEL: Record<string, string> = { small: '小', medium: '中', large: '大' };
 const SEGMENT_LABEL: Record<string, string> = {
   family: 'ファミリー',
   business: 'ビジネス',
-  tourist: '観光客',
-  student: '学生',
+  student: '若者・学生',
   senior: 'シニア',
+  tourist: 'インバウンド',
+  mixed: '幅広い',
+};
+const OPERATION_LABEL: Record<string, string> = { direct: '直営中心', fc: 'FC中心', mixed: '直営+FC' };
+const LISTING_LABEL: Record<string, string> = { listed: '上場', private: '非上場', unknown: '未確認' };
+const PAYMENT_METHOD_LABEL: Record<string, string> = {
+  bank: '銀行振込',
+  tegata: '手形',
+  densai: 'でんさい',
+  other: 'その他',
+};
+const ORDER_STYLE_LABEL: Record<string, string> = {
+  hq: '本部一括',
+  store: '店舗個別',
+  center: 'センター経由',
   mixed: '混合',
 };
-function triLabel(v: boolean | null): string {
-  if (v === true) return 'あり';
-  if (v === false) return 'なし';
-  return '—';
-}
+const DELIVERY_STYLE_LABEL: Record<string, string> = {
+  own_center: '自社センター',
+  shared_center: '共配センター',
+  direct: '店舗直送',
+  unknown: '未確認',
+};
 
 function KarteItem({ label, value }: { label: string; value: string }) {
   return (
@@ -61,6 +75,15 @@ function KarteItem({ label, value }: { label: string; value: string }) {
       <Text style={styles.karteItemLabel}>{label}</Text>
       <Text style={styles.karteItemValue}>{value}</Text>
     </View>
+  );
+}
+
+function KarteLine({ label, value }: { label: string; value: string }) {
+  return (
+    <Text style={styles.karteSub}>
+      <Text style={styles.karteSubLabel}>{label}: </Text>
+      {value}
+    </Text>
   );
 }
 
@@ -111,12 +134,35 @@ export default function CustomerDetailScreen() {
   const days = daysSince(detail.last_ordered_at);
   const suggestions = detail.recommendations;
 
+  // 新スキーマの項目が1つでも埋まっていればカルテ有りとみなす（旧・厨房データのみの行は未登録扱い）
+  const karteFilled = !!karte && (
+    karte.store_count != null ||
+    karte.operation_type != null ||
+    karte.area_note != null ||
+    karte.annual_revenue_note != null ||
+    karte.listing_status != null ||
+    karte.payment_terms != null ||
+    karte.payment_method != null ||
+    karte.credit_score != null ||
+    karte.credit_limit_yen != null ||
+    karte.order_style != null ||
+    karte.delivery_style != null ||
+    karte.decision_maker != null ||
+    karte.competitor_supplier != null ||
+    karte.signature_dish != null ||
+    (Array.isArray(karte.target_segments) && karte.target_segments.length > 0) ||
+    karte.needs_note != null ||
+    karte.free_note != null
+  );
+
   return (
     <Screen back>
       {/* 店舗画像ヒーロー */}
       <View style={styles.heroImage}>
         {detail.image_url ? (
-          <Image source={{ uri: detail.image_url }} style={styles.heroImg} contentFit="cover" />
+          <View style={[styles.heroImg, styles.heroLogoWrap]}>
+            <Image source={{ uri: detail.image_url }} style={{ width: '80%', height: '70%' }} contentFit="contain" />
+          </View>
         ) : (
           <View style={[styles.heroImg, styles.heroPlaceholder]}>
             <Text style={styles.heroPlaceholderIcon}>🏪</Text>
@@ -175,24 +221,13 @@ export default function CustomerDetailScreen() {
 
       {/* アクション */}
       <View style={styles.actionRow}>
-        <View style={{ flex: 2 }}>
-          <Button
-            label="＋ 受注入力"
-            variant="cta"
-            size="lg"
-            fullWidth
-            onPress={() => router.push({ pathname: '/order-new/[customerId]', params: { customerId: detail.id } })}
-          />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Button
-            label="編集"
-            variant="secondary"
-            size="lg"
-            fullWidth
-            onPress={() => router.push({ pathname: '/customer-edit/[id]', params: { id: detail.id } })}
-          />
-        </View>
+        <Button
+          label="編集"
+          variant="secondary"
+          size="lg"
+          fullWidth
+          onPress={() => router.push({ pathname: '/customer-edit/[id]', params: { id: detail.id } })}
+        />
       </View>
 
       {/* ショールーム招待ボタン */}
@@ -257,25 +292,57 @@ export default function CustomerDetailScreen() {
       )}
 
       {/* カルテ */}
-      <SectionTitle title="顧客カルテ" caption="厨房・オペ・客層の構造化情報" />
-      {karte ? (
+      <SectionTitle title="顧客カルテ" caption="企業概要・取引条件・商流" />
+      {karteFilled ? (
         <Card variant="surface" padding={14}>
           <View style={styles.karteGrid}>
-            <KarteItem label="フライヤー" value={triLabel(karte.has_fryer)} />
-            <KarteItem label="オーブン" value={triLabel(karte.has_convection_oven)} />
-            <KarteItem label="冷凍庫" value={karte.freezer_capacity ? SIZE_LABEL[karte.freezer_capacity] : '—'} />
-            <KarteItem label="厨房サイズ" value={karte.kitchen_size ? SIZE_LABEL[karte.kitchen_size] : '—'} />
-            <KarteItem label="スタッフ数" value={karte.staff_count != null ? `${karte.staff_count} 人` : '—'} />
-            <KarteItem label="平均提供時間" value={karte.avg_serve_minutes != null ? `${karte.avg_serve_minutes} 分` : '—'} />
-            <KarteItem label="客単価" value={karte.avg_check_yen != null ? jpy(karte.avg_check_yen) : '—'} />
-            <KarteItem label="客層" value={karte.customer_segment ? SEGMENT_LABEL[karte.customer_segment] : '—'} />
+            <KarteItem label="店舗数" value={karte!.store_count != null ? `${karte!.store_count} 店` : '—'} />
+            <KarteItem
+              label="展開形態"
+              value={karte!.operation_type ? OPERATION_LABEL[karte!.operation_type] : '—'}
+            />
+            <KarteItem
+              label="上場区分"
+              value={karte!.listing_status ? LISTING_LABEL[karte!.listing_status] : '—'}
+            />
+            <KarteItem
+              label="与信スコア"
+              value={karte!.credit_score != null ? `${karte!.credit_score} 点` : '—'}
+            />
+            <KarteItem
+              label="与信限度額"
+              value={karte!.credit_limit_yen != null ? jpy(karte!.credit_limit_yen) : '—'}
+            />
+            <KarteItem
+              label="発注形態"
+              value={karte!.order_style ? ORDER_STYLE_LABEL[karte!.order_style] : '—'}
+            />
+            <KarteItem
+              label="物流形態"
+              value={karte!.delivery_style ? DELIVERY_STYLE_LABEL[karte!.delivery_style] : '—'}
+            />
           </View>
-          {karte.peak_hours ? (
-            <Text style={styles.karteSub}>ピーク時間: {karte.peak_hours}</Text>
+
+          <View style={styles.karteDivider} />
+
+          {karte!.payment_terms ? <KarteLine label="締め支払い" value={karte!.payment_terms} /> : null}
+          {karte!.payment_method ? (
+            <KarteLine label="支払方法" value={PAYMENT_METHOD_LABEL[karte!.payment_method]} />
           ) : null}
-          {karte.signature_dish ? (
-            <Text style={styles.karteSub}>看板商品: {karte.signature_dish}</Text>
+          {karte!.area_note ? <KarteLine label="展開エリア" value={karte!.area_note} /> : null}
+          {karte!.annual_revenue_note ? <KarteLine label="年商規模" value={karte!.annual_revenue_note} /> : null}
+          {karte!.decision_maker ? <KarteLine label="キーマン" value={karte!.decision_maker} /> : null}
+          {karte!.competitor_supplier ? <KarteLine label="競合仕入先" value={karte!.competitor_supplier} /> : null}
+          {karte!.signature_dish ? <KarteLine label="看板商品" value={karte!.signature_dish} /> : null}
+          {karte!.target_segments && karte!.target_segments.length > 0 ? (
+            <KarteLine
+              label="ターゲット客層"
+              value={karte!.target_segments.map((s) => SEGMENT_LABEL[s] ?? s).join('・')}
+            />
           ) : null}
+          {karte!.needs_note ? <KarteLine label="提案ニーズ" value={karte!.needs_note} /> : null}
+          {karte!.free_note ? <KarteLine label="メモ" value={karte!.free_note} /> : null}
+
           <Pressable
             onPress={() => router.push({ pathname: '/customer-karte/[id]', params: { id: detail.id } })}
             style={styles.karteEditBtn}
@@ -287,7 +354,7 @@ export default function CustomerDetailScreen() {
         <Card variant="muted" padding={16}>
           <Text style={styles.karteEmptyText}>カルテ未登録</Text>
           <Text style={styles.karteEmptySub}>
-            厨房環境・オペ・客層を登録すると、提案候補がより正確になります
+            企業概要・取引条件（与信/支払）・商流を登録すると、担当交代や提案時にすぐ把握できます
           </Text>
           <View style={{ marginTop: 12 }}>
             <Button
@@ -384,6 +451,7 @@ const styles = StyleSheet.create({
     backgroundColor: Ink[100],
   },
   heroImg: { width: '100%', height: '100%' },
+  heroLogoWrap: { alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
   heroPlaceholder: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -480,7 +548,9 @@ const styles = StyleSheet.create({
   karteItem: { width: '50%', paddingVertical: 6 },
   karteItemLabel: { fontSize: 10, color: Ink[500], fontWeight: '700', letterSpacing: 0.3 },
   karteItemValue: { fontSize: 13, color: Ink[900], fontWeight: '700', marginTop: 2 },
-  karteSub: { fontSize: 11, color: Ink[600], marginTop: 8 },
+  karteDivider: { height: 1, backgroundColor: Ink[100], marginTop: 12, marginBottom: 4 },
+  karteSub: { fontSize: 12, color: Ink[700], marginTop: 6, lineHeight: 17 },
+  karteSubLabel: { color: Ink[500], fontWeight: '700' },
   karteEditBtn: {
     marginTop: 12,
     paddingVertical: 10,

@@ -13,43 +13,54 @@ import {
   saveCustomerKarte,
   useCustomerKarte,
   type CustomerSegment,
-  type FreezerCapacity,
-  type KitchenSize,
+  type DeliveryStyle,
+  type ListingStatus,
+  type OperationType,
+  type OrderStyle,
+  type PaymentMethod,
 } from '@/hooks/use-customer-karte';
 
-type Tri = 'yes' | 'no' | 'unknown';
+const OPERATION_OPTIONS: { value: OperationType; label: string }[] = [
+  { value: 'direct', label: '直営中心' },
+  { value: 'fc', label: 'FC中心' },
+  { value: 'mixed', label: '直営+FC' },
+];
 
-const TRI_OPTIONS: { value: Tri; label: string }[] = [
-  { value: 'yes', label: 'あり' },
-  { value: 'no', label: 'なし' },
+const LISTING_OPTIONS: { value: ListingStatus; label: string }[] = [
+  { value: 'listed', label: '上場' },
+  { value: 'private', label: '非上場' },
   { value: 'unknown', label: '未確認' },
 ];
 
-const SIZE_OPTIONS: { value: 'small' | 'medium' | 'large'; label: string }[] = [
-  { value: 'small', label: '小' },
-  { value: 'medium', label: '中' },
-  { value: 'large', label: '大' },
+const PAYMENT_METHOD_OPTIONS: { value: PaymentMethod; label: string }[] = [
+  { value: 'bank', label: '銀行振込' },
+  { value: 'tegata', label: '手形' },
+  { value: 'densai', label: 'でんさい' },
+  { value: 'other', label: 'その他' },
+];
+
+const ORDER_STYLE_OPTIONS: { value: OrderStyle; label: string }[] = [
+  { value: 'hq', label: '本部一括' },
+  { value: 'store', label: '店舗個別' },
+  { value: 'center', label: 'センター経由' },
+  { value: 'mixed', label: '混合' },
+];
+
+const DELIVERY_STYLE_OPTIONS: { value: DeliveryStyle; label: string }[] = [
+  { value: 'own_center', label: '自社センター' },
+  { value: 'shared_center', label: '共配センター' },
+  { value: 'direct', label: '店舗直送' },
+  { value: 'unknown', label: '未確認' },
 ];
 
 const SEGMENT_OPTIONS: { value: CustomerSegment; label: string }[] = [
   { value: 'family', label: 'ファミリー' },
   { value: 'business', label: 'ビジネス' },
-  { value: 'tourist', label: '観光客' },
-  { value: 'student', label: '学生' },
+  { value: 'student', label: '若者・学生' },
   { value: 'senior', label: 'シニア' },
-  { value: 'mixed', label: '混合' },
+  { value: 'tourist', label: 'インバウンド' },
+  { value: 'mixed', label: '幅広い' },
 ];
-
-function boolToTri(v: boolean | null): Tri {
-  if (v === true) return 'yes';
-  if (v === false) return 'no';
-  return 'unknown';
-}
-function triToBool(t: Tri): boolean | null {
-  if (t === 'yes') return true;
-  if (t === 'no') return false;
-  return null;
-}
 
 export default function CustomerKarteEditScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -57,23 +68,27 @@ export default function CustomerKarteEditScreen() {
   const { karte, loading: loadingKarte } = useCustomerKarte(id);
   const { session } = useAuth();
 
-  // 厨房
-  const [hasFryer, setHasFryer] = useState<Tri>('unknown');
-  const [hasOven, setHasOven] = useState<Tri>('unknown');
-  const [freezer, setFreezer] = useState<FreezerCapacity | null>(null);
-  const [kitchenSize, setKitchenSize] = useState<KitchenSize | null>(null);
-  // オペ
-  const [staffCount, setStaffCount] = useState('');
-  const [peakHours, setPeakHours] = useState('');
-  const [avgServeMin, setAvgServeMin] = useState('');
-  // メニュー
-  const [avgCheckYen, setAvgCheckYen] = useState('');
+  // 企業概要
+  const [storeCount, setStoreCount] = useState('');
+  const [operationType, setOperationType] = useState<OperationType | null>(null);
+  const [areaNote, setAreaNote] = useState('');
+  const [revenueNote, setRevenueNote] = useState('');
+  const [listing, setListing] = useState<ListingStatus | null>(null);
+  // 取引条件
+  const [paymentTerms, setPaymentTerms] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
+  const [creditScore, setCreditScore] = useState('');
+  const [creditLimit, setCreditLimit] = useState('');
+  // 商流・意思決定
+  const [orderStyle, setOrderStyle] = useState<OrderStyle | null>(null);
+  const [deliveryStyle, setDeliveryStyle] = useState<DeliveryStyle | null>(null);
+  const [decisionMaker, setDecisionMaker] = useState('');
+  const [competitor, setCompetitor] = useState('');
+  // 商品・提案
   const [signatureDish, setSignatureDish] = useState('');
-  const [seasonalNote, setSeasonalNote] = useState('');
-  // 客層
-  const [segment, setSegment] = useState<CustomerSegment | null>(null);
-  const [repeatRateNote, setRepeatRateNote] = useState('');
-  // 自由
+  const [segments, setSegments] = useState<CustomerSegment[]>([]);
+  const [needsNote, setNeedsNote] = useState('');
+  // メモ
   const [freeNote, setFreeNote] = useState('');
 
   const [submitting, setSubmitting] = useState(false);
@@ -81,26 +96,34 @@ export default function CustomerKarteEditScreen() {
 
   useEffect(() => {
     if (!karte) return;
-    setHasFryer(boolToTri(karte.has_fryer));
-    setHasOven(boolToTri(karte.has_convection_oven));
-    setFreezer(karte.freezer_capacity);
-    setKitchenSize(karte.kitchen_size);
-    setStaffCount(karte.staff_count != null ? String(karte.staff_count) : '');
-    setPeakHours(karte.peak_hours ?? '');
-    setAvgServeMin(karte.avg_serve_minutes != null ? String(karte.avg_serve_minutes) : '');
-    setAvgCheckYen(karte.avg_check_yen != null ? String(karte.avg_check_yen) : '');
+    setStoreCount(karte.store_count != null ? String(karte.store_count) : '');
+    setOperationType(karte.operation_type);
+    setAreaNote(karte.area_note ?? '');
+    setRevenueNote(karte.annual_revenue_note ?? '');
+    setListing(karte.listing_status);
+    setPaymentTerms(karte.payment_terms ?? '');
+    setPaymentMethod(karte.payment_method);
+    setCreditScore(karte.credit_score != null ? String(karte.credit_score) : '');
+    setCreditLimit(karte.credit_limit_yen != null ? String(karte.credit_limit_yen) : '');
+    setOrderStyle(karte.order_style);
+    setDeliveryStyle(karte.delivery_style);
+    setDecisionMaker(karte.decision_maker ?? '');
+    setCompetitor(karte.competitor_supplier ?? '');
     setSignatureDish(karte.signature_dish ?? '');
-    setSeasonalNote(karte.seasonal_menu_note ?? '');
-    setSegment(karte.customer_segment);
-    setRepeatRateNote(karte.repeat_rate_note ?? '');
+    setSegments(Array.isArray(karte.target_segments) ? karte.target_segments : []);
+    setNeedsNote(karte.needs_note ?? '');
     setFreeNote(karte.free_note ?? '');
   }, [karte]);
 
   function parseIntOrNull(s: string): number | null {
-    const t = s.trim();
+    const t = s.replace(/[,\s]/g, '');
     if (!t) return null;
     const n = parseInt(t, 10);
     return Number.isFinite(n) ? n : null;
+  }
+
+  function toggleSegment(v: CustomerSegment) {
+    setSegments((prev) => (prev.includes(v) ? prev.filter((s) => s !== v) : [...prev, v]));
   }
 
   async function submit() {
@@ -111,18 +134,22 @@ export default function CustomerKarteEditScreen() {
       await saveCustomerKarte(
         {
           customer_id: id,
-          has_fryer: triToBool(hasFryer),
-          has_convection_oven: triToBool(hasOven),
-          freezer_capacity: freezer,
-          kitchen_size: kitchenSize,
-          staff_count: parseIntOrNull(staffCount),
-          peak_hours: peakHours.trim() || null,
-          avg_serve_minutes: parseIntOrNull(avgServeMin),
-          avg_check_yen: parseIntOrNull(avgCheckYen),
+          store_count: parseIntOrNull(storeCount),
+          operation_type: operationType,
+          area_note: areaNote.trim() || null,
+          annual_revenue_note: revenueNote.trim() || null,
+          listing_status: listing,
+          payment_terms: paymentTerms.trim() || null,
+          payment_method: paymentMethod,
+          credit_score: parseIntOrNull(creditScore),
+          credit_limit_yen: parseIntOrNull(creditLimit),
+          order_style: orderStyle,
+          delivery_style: deliveryStyle,
+          decision_maker: decisionMaker.trim() || null,
+          competitor_supplier: competitor.trim() || null,
           signature_dish: signatureDish.trim() || null,
-          seasonal_menu_note: seasonalNote.trim() || null,
-          customer_segment: segment,
-          repeat_rate_note: repeatRateNote.trim() || null,
+          target_segments: segments,
+          needs_note: needsNote.trim() || null,
           free_note: freeNote.trim() || null,
         },
         session?.user.id ?? null,
@@ -152,190 +179,218 @@ export default function CustomerKarteEditScreen() {
     );
   }
 
+  function ChipRow<T extends string>({
+    options,
+    selected,
+    onSelect,
+  }: {
+    options: { value: T; label: string }[];
+    selected: T | null;
+    onSelect: (v: T | null) => void;
+  }) {
+    return (
+      <View style={styles.chipRow}>
+        {options.map((o) => {
+          const active = selected === o.value;
+          return (
+            <Pressable
+              key={o.value}
+              onPress={() => onSelect(active ? null : o.value)}
+              style={[styles.chip, active && styles.chipActive]}
+            >
+              <Text style={[styles.chipText, active && styles.chipTextActive]}>{o.label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    );
+  }
+
   return (
     <Screen back>
       <Text style={styles.title}>顧客カルテを編集</Text>
       <Text style={styles.sub}>{detail?.name ?? '—'}</Text>
       <Text style={styles.lead}>
-        厨房環境・オペ・客層を記録すると、提案候補がより正確になります
+        企業概要・取引条件・商流を記録すると、担当交代や提案時にすぐ状況を把握できます
       </Text>
 
-      {/* 厨房環境 */}
-      <SectionTitle title="厨房環境" />
+      {/* ── 企業概要 ── */}
+      <SectionTitle title="企業概要" />
 
       <View style={styles.field}>
-        <Text style={styles.label}>フライヤー</Text>
-        <View style={styles.chipRow}>
-          {TRI_OPTIONS.map((o) => (
-            <Pressable
-              key={o.value}
-              onPress={() => setHasFryer(o.value)}
-              style={[styles.chip, hasFryer === o.value && styles.chipActive]}
-            >
-              <Text style={[styles.chipText, hasFryer === o.value && styles.chipTextActive]}>{o.label}</Text>
-            </Pressable>
-          ))}
-        </View>
-      </View>
-
-      <View style={styles.field}>
-        <Text style={styles.label}>コンベクションオーブン</Text>
-        <View style={styles.chipRow}>
-          {TRI_OPTIONS.map((o) => (
-            <Pressable
-              key={o.value}
-              onPress={() => setHasOven(o.value)}
-              style={[styles.chip, hasOven === o.value && styles.chipActive]}
-            >
-              <Text style={[styles.chipText, hasOven === o.value && styles.chipTextActive]}>{o.label}</Text>
-            </Pressable>
-          ))}
-        </View>
-      </View>
-
-      <View style={styles.field}>
-        <Text style={styles.label}>冷凍庫容量</Text>
-        <View style={styles.chipRow}>
-          {SIZE_OPTIONS.map((o) => (
-            <Pressable
-              key={o.value}
-              onPress={() => setFreezer(freezer === o.value ? null : (o.value as FreezerCapacity))}
-              style={[styles.chip, freezer === o.value && styles.chipActive]}
-            >
-              <Text style={[styles.chipText, freezer === o.value && styles.chipTextActive]}>{o.label}</Text>
-            </Pressable>
-          ))}
-        </View>
-      </View>
-
-      <View style={styles.field}>
-        <Text style={styles.label}>厨房サイズ</Text>
-        <View style={styles.chipRow}>
-          {SIZE_OPTIONS.map((o) => (
-            <Pressable
-              key={o.value}
-              onPress={() => setKitchenSize(kitchenSize === o.value ? null : (o.value as KitchenSize))}
-              style={[styles.chip, kitchenSize === o.value && styles.chipActive]}
-            >
-              <Text style={[styles.chipText, kitchenSize === o.value && styles.chipTextActive]}>{o.label}</Text>
-            </Pressable>
-          ))}
-        </View>
-      </View>
-
-      {/* オペレーション */}
-      <SectionTitle title="オペレーション" />
-
-      <View style={styles.field}>
-        <Text style={styles.label}>スタッフ数（人）</Text>
+        <Text style={styles.label}>店舗数（店）</Text>
         <TextInput
-          value={staffCount}
-          onChangeText={setStaffCount}
+          value={storeCount}
+          onChangeText={setStoreCount}
           keyboardType="numeric"
-          placeholder="例: 5"
+          placeholder="例: 120"
           placeholderTextColor={Ink[400]}
           style={styles.input}
         />
       </View>
 
       <View style={styles.field}>
-        <Text style={styles.label}>ピーク時間帯</Text>
+        <Text style={styles.label}>展開形態</Text>
+        <ChipRow options={OPERATION_OPTIONS} selected={operationType} onSelect={setOperationType} />
+      </View>
+
+      <View style={styles.field}>
+        <Text style={styles.label}>展開エリア</Text>
         <TextInput
-          value={peakHours}
-          onChangeText={setPeakHours}
-          placeholder="例: 11:30-13:30, 18:00-20:00"
+          value={areaNote}
+          onChangeText={setAreaNote}
+          placeholder="例: 全国 / 関東中心 / 首都圏+関西"
           placeholderTextColor={Ink[400]}
           style={styles.input}
         />
       </View>
 
       <View style={styles.field}>
-        <Text style={styles.label}>平均提供時間（分）</Text>
+        <Text style={styles.label}>年商規模</Text>
         <TextInput
-          value={avgServeMin}
-          onChangeText={setAvgServeMin}
-          keyboardType="numeric"
-          placeholder="例: 10"
+          value={revenueNote}
+          onChangeText={setRevenueNote}
+          placeholder="例: 約300億円 / 非公開"
           placeholderTextColor={Ink[400]}
           style={styles.input}
         />
       </View>
 
-      {/* メニュー構成 */}
-      <SectionTitle title="メニュー構成" />
+      <View style={styles.field}>
+        <Text style={styles.label}>上場区分</Text>
+        <ChipRow options={LISTING_OPTIONS} selected={listing} onSelect={setListing} />
+      </View>
+
+      {/* ── 取引条件（与信・支払い） ── */}
+      <SectionTitle title="取引条件（与信・支払い）" />
 
       <View style={styles.field}>
-        <Text style={styles.label}>客単価（円）</Text>
+        <Text style={styles.label}>締め・支払い条件</Text>
         <TextInput
-          value={avgCheckYen}
-          onChangeText={setAvgCheckYen}
-          keyboardType="numeric"
-          placeholder="例: 1500"
+          value={paymentTerms}
+          onChangeText={setPaymentTerms}
+          placeholder="例: 月末締め 翌月末払い"
           placeholderTextColor={Ink[400]}
           style={styles.input}
         />
       </View>
 
       <View style={styles.field}>
-        <Text style={styles.label}>看板商品</Text>
+        <Text style={styles.label}>支払方法</Text>
+        <ChipRow options={PAYMENT_METHOD_OPTIONS} selected={paymentMethod} onSelect={setPaymentMethod} />
+      </View>
+
+      <View style={styles.row2}>
+        <View style={[styles.field, { flex: 1 }]}>
+          <Text style={styles.label}>与信スコア（0〜100）</Text>
+          <TextInput
+            value={creditScore}
+            onChangeText={setCreditScore}
+            keyboardType="numeric"
+            placeholder="例: 80"
+            placeholderTextColor={Ink[400]}
+            style={styles.input}
+          />
+        </View>
+        <View style={[styles.field, { flex: 1 }]}>
+          <Text style={styles.label}>与信限度額（円）</Text>
+          <TextInput
+            value={creditLimit}
+            onChangeText={setCreditLimit}
+            keyboardType="numeric"
+            placeholder="例: 5000000"
+            placeholderTextColor={Ink[400]}
+            style={styles.input}
+          />
+        </View>
+      </View>
+
+      {/* ── 商流・意思決定 ── */}
+      <SectionTitle title="商流・意思決定" />
+
+      <View style={styles.field}>
+        <Text style={styles.label}>発注形態</Text>
+        <ChipRow options={ORDER_STYLE_OPTIONS} selected={orderStyle} onSelect={setOrderStyle} />
+      </View>
+
+      <View style={styles.field}>
+        <Text style={styles.label}>物流形態</Text>
+        <ChipRow options={DELIVERY_STYLE_OPTIONS} selected={deliveryStyle} onSelect={setDeliveryStyle} />
+      </View>
+
+      <View style={styles.field}>
+        <Text style={styles.label}>キーマン・決裁者</Text>
+        <TextInput
+          value={decisionMaker}
+          onChangeText={setDecisionMaker}
+          placeholder="例: 商品部 田中部長"
+          placeholderTextColor={Ink[400]}
+          style={styles.input}
+        />
+      </View>
+
+      <View style={styles.field}>
+        <Text style={styles.label}>競合仕入先</Text>
+        <TextInput
+          value={competitor}
+          onChangeText={setCompetitor}
+          placeholder="例: ○○フーズから冷凍を仕入れ"
+          placeholderTextColor={Ink[400]}
+          style={styles.input}
+        />
+      </View>
+
+      {/* ── 商品・提案 ── */}
+      <SectionTitle title="商品・提案" />
+
+      <View style={styles.field}>
+        <Text style={styles.label}>看板商品・主力メニュー</Text>
         <TextInput
           value={signatureDish}
           onChangeText={setSignatureDish}
-          placeholder="例: 小籠包セット"
+          placeholder="例: 唐揚げ定食 / タピオカドリンク"
           placeholderTextColor={Ink[400]}
           style={styles.input}
         />
       </View>
 
       <View style={styles.field}>
-        <Text style={styles.label}>季節メニューメモ</Text>
-        <TextInput
-          value={seasonalNote}
-          onChangeText={setSeasonalNote}
-          placeholder="季節限定メニューや入れ替えタイミングなど"
-          placeholderTextColor={Ink[400]}
-          style={[styles.input, styles.multiline]}
-          multiline
-        />
-      </View>
-
-      {/* 顧客層 */}
-      <SectionTitle title="顧客層" />
-
-      <View style={styles.field}>
-        <Text style={styles.label}>セグメント</Text>
+        <Text style={styles.label}>ターゲット客層（複数選択可）</Text>
         <View style={styles.chipRow}>
-          {SEGMENT_OPTIONS.map((o) => (
-            <Pressable
-              key={o.value}
-              onPress={() => setSegment(segment === o.value ? null : o.value)}
-              style={[styles.chip, segment === o.value && styles.chipActive]}
-            >
-              <Text style={[styles.chipText, segment === o.value && styles.chipTextActive]}>{o.label}</Text>
-            </Pressable>
-          ))}
+          {SEGMENT_OPTIONS.map((o) => {
+            const active = segments.includes(o.value);
+            return (
+              <Pressable
+                key={o.value}
+                onPress={() => toggleSegment(o.value)}
+                style={[styles.chip, active && styles.chipActive]}
+              >
+                <Text style={[styles.chipText, active && styles.chipTextActive]}>{o.label}</Text>
+              </Pressable>
+            );
+          })}
         </View>
       </View>
 
       <View style={styles.field}>
-        <Text style={styles.label}>リピート率メモ</Text>
+        <Text style={styles.label}>提案ニーズ・課題</Text>
         <TextInput
-          value={repeatRateNote}
-          onChangeText={setRepeatRateNote}
-          placeholder="例: 常連7割、観光客3割"
+          value={needsNote}
+          onChangeText={setNeedsNote}
+          placeholder="例: ドリンク原価を下げたい / 通年商品を探している"
           placeholderTextColor={Ink[400]}
           style={[styles.input, styles.multiline]}
           multiline
         />
       </View>
 
-      {/* 自由記述 */}
-      <SectionTitle title="自由記述" />
+      {/* ── メモ ── */}
+      <SectionTitle title="メモ" />
       <View style={styles.field}>
         <TextInput
           value={freeNote}
           onChangeText={setFreeNote}
-          placeholder="その他、提案に役立ちそうな情報"
+          placeholder="その他、提案・交渉に役立つ情報"
           placeholderTextColor={Ink[400]}
           style={[styles.input, styles.multilineLarge]}
           multiline
@@ -365,6 +420,7 @@ const styles = StyleSheet.create({
   lead: { fontSize: 11, color: Ink[500], marginTop: 6, marginBottom: 18, lineHeight: 16 },
 
   field: { marginBottom: 14 },
+  row2: { flexDirection: 'row', gap: 10 },
   label: { fontSize: 12, color: Ink[700], fontWeight: '700', marginBottom: 8 },
   input: {
     backgroundColor: '#fff',
