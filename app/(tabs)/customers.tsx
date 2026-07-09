@@ -1,11 +1,13 @@
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Screen } from '@/components/ranger/Screen';
 import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
 import { Chip, ChipRow } from '@/components/ui/Chip';
+import { CustomerThumb } from '@/components/ui/CustomerThumb';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ShimmerList } from '@/components/ui/Shimmer';
 import { Brand, Ink, Radius } from '@/constants/theme';
@@ -13,11 +15,14 @@ import { useAuth } from '@/hooks/use-auth';
 import { type DerivedStatus, deriveStatus, useCustomers } from '@/hooks/use-customers';
 import { type DormancyLevel, useDormantCustomers } from '@/hooks/use-dormant-customers';
 import { useProfile } from '@/hooks/use-profile';
-import { daysSince } from '@/lib/format';
+import { daysSince, jpy } from '@/lib/format';
 import { getPhaseLabel, getPhaseTone, SALES_PHASES, type SalesPhase } from '@/lib/sales-phase';
 
 type Filter = 'all' | DerivedStatus;
 type DormancyFilter = null | 'all' | 'warning' | 'danger' | 'critical';
+type SortKey = 'recent' | 'sales' | 'name';
+
+const SORT_LABEL: Record<SortKey, string> = { recent: '最終発注順', sales: '売上順', name: '店名順' };
 
 const STATUS_LABEL: Record<DerivedStatus, string> = { good: '好調', stall: '停滞', follow: '要フォロー' };
 const STATUS_TONE: Record<DerivedStatus, 'emerald' | 'amber' | 'red'> = {
@@ -33,17 +38,31 @@ const DORMANCY_LABEL: Record<Exclude<DormancyFilter, null>, string> = {
   critical: '🔴 90日以上未発注',
 };
 
+function showStatusInfo() {
+  const message =
+    '🟢 好調：最終発注から14日未満\n' +
+    '🟡 停滞：最終発注から14〜30日\n' +
+    '🔴 要フォロー：最終発注から30日以上、または発注履歴なし';
+  if (Platform.OS === 'web') {
+    if (typeof window !== 'undefined') window.alert(message);
+  } else {
+    Alert.alert('ステータスの基準', message);
+  }
+}
+
 export default function CustomersScreen() {
   const { customers, loading, error, reload } = useCustomers();
   const { session } = useAuth();
   const { profile } = useProfile(session);
   const isAdmin = profile?.role === 'admin';
   const params = useLocalSearchParams<{ phase?: string; dormancy?: string }>();
+  const [segment, setSegment] = useState<'existing' | 'prospect'>('existing');
   const [filter, setFilter] = useState<Filter>('all');
   const [bizFilter, setBizFilter] = useState<string>('all');
   const [phaseFilter, setPhaseFilter] = useState<SalesPhase | null>(null);
   const [dormancyFilter, setDormancyFilter] = useState<DormancyFilter>(null);
   const [query, setQuery] = useState('');
+  const [sortKey, setSortKey] = useState<SortKey>('recent');
 
   // 取引断絶検知（DEVICE A）— 担当範囲の全顧客（includeAll で active も含めて取得）
   const { customers: dormantRows } = useDormantCustomers(
@@ -56,9 +75,10 @@ export default function CustomersScreen() {
     return m;
   }, [dormantRows]);
 
-  // ホームの「獲得顧客のフェーズ」バッジから飛んできたとき、初期フェーズを反映
+  // ホームの「獲得顧客のフェーズ」バッジから飛んできたとき、新規開拓タブ+フェーズを反映
   useEffect(() => {
     if (params.phase && SALES_PHASES.some((p) => p.key === params.phase)) {
+      setSegment('prospect');
       setPhaseFilter(params.phase as SalesPhase);
     }
   }, [params.phase]);
@@ -83,30 +103,63 @@ export default function CustomersScreen() {
     [customers]
   );
 
+  // 既存(VIPS由来) / 新規開拓(レンジャー獲得) のすみわけ
+  const existing = useMemo(() => enriched.filter((c) => !c.acquired_by_ranger_id), [enriched]);
+  const prospects = useMemo(() => enriched.filter((c) => c.acquired_by_ranger_id), [enriched]);
+
   const counts = useMemo(
     () => ({
-      all: enriched.length,
-      good: enriched.filter((c) => c.derivedStatus === 'good').length,
-      stall: enriched.filter((c) => c.derivedStatus === 'stall').length,
-      follow: enriched.filter((c) => c.derivedStatus === 'follow').length,
+      all: existing.length,
+      good: existing.filter((c) => c.derivedStatus === 'good').length,
+      stall: existing.filter((c) => c.derivedStatus === 'stall').length,
+      follow: existing.filter((c) => c.derivedStatus === 'follow').length,
     }),
-    [enriched]
+    [existing]
   );
+
+  const phaseCounts = useMemo(() => {
+    const m: Partial<Record<SalesPhase, number>> = {};
+    prospects.forEach((c) => {
+      if (c.sales_phase) m[c.sales_phase] = (m[c.sales_phase] ?? 0) + 1;
+    });
+    return m;
+  }, [prospects]);
 
   const bizTypes = useMemo(() => {
     const set = new Set<string>();
-    enriched.forEach((c) => { if (c.business_type) set.add(c.business_type); });
+    existing.forEach((c) => { if (c.business_type) set.add(c.business_type); });
     return Array.from(set).sort();
-  }, [enriched]);
+  }, [existing]);
 
-  const list = enriched.filter(
-    (c) =>
-      (filter === 'all' || c.derivedStatus === filter) &&
-      (bizFilter === 'all' || c.business_type === bizFilter) &&
-      (phaseFilter === null || c.sales_phase === phaseFilter) &&
-      matchesDormancy(c.id) &&
-      (query === '' || `${c.name}${c.branch_name ?? ''}${c.address ?? ''}`.includes(query))
-  );
+  const matchesQuery = (c: (typeof enriched)[number]) =>
+    query === '' || `${c.name}${c.branch_name ?? ''}${c.address ?? ''}`.includes(query);
+
+  const filtered =
+    segment === 'existing'
+      ? existing.filter(
+          (c) =>
+            (filter === 'all' || c.derivedStatus === filter) &&
+            (bizFilter === 'all' || c.business_type === bizFilter) &&
+            matchesDormancy(c.id) &&
+            matchesQuery(c)
+        )
+      : prospects.filter(
+          (c) => (phaseFilter === null || c.sales_phase === phaseFilter) && matchesQuery(c)
+        );
+
+  const phaseOrder = (p: SalesPhase | null) => {
+    const i = SALES_PHASES.findIndex((s) => s.key === p);
+    return i === -1 ? 99 : i;
+  };
+  // 'recent' は useCustomers 側で last_ordered_at desc 済みなのでソート不要
+  const list =
+    segment === 'prospect'
+      ? [...filtered].sort((a, b) => phaseOrder(a.sales_phase) - phaseOrder(b.sales_phase))
+      : sortKey === 'sales'
+        ? [...filtered].sort((a, b) => b.total_sales_jpy - a.total_sales_jpy)
+        : sortKey === 'name'
+          ? [...filtered].sort((a, b) => a.name.localeCompare(b.name, 'ja'))
+          : filtered;
 
   return (
     <Screen>
@@ -117,13 +170,30 @@ export default function CustomersScreen() {
             {isAdmin ? `${enriched.length} 店（全社）` : `${enriched.length} 店を担当中`}
           </Text>
         </View>
-        <Pressable style={styles.addBtn} onPress={() => router.push('/customer-new')}>
-          <Text style={styles.addBtnText}>＋</Text>
+      </View>
+
+      {/* 既存 / 新規開拓 切替 */}
+      <View style={styles.segmentRow}>
+        <Pressable
+          onPress={() => setSegment('existing')}
+          style={[styles.segmentBtn, segment === 'existing' && styles.segmentBtnActive]}
+        >
+          <Text style={[styles.segmentText, segment === 'existing' && styles.segmentTextActive]}>
+            既存 {existing.length}
+          </Text>
+        </Pressable>
+        <Pressable
+          onPress={() => setSegment('prospect')}
+          style={[styles.segmentBtn, segment === 'prospect' && styles.segmentBtnActive]}
+        >
+          <Text style={[styles.segmentText, segment === 'prospect' && styles.segmentTextActive]}>
+            新規開拓 {prospects.length}
+          </Text>
         </Pressable>
       </View>
 
       {/* フェーズフィルタ適用中のバナー */}
-      {phaseFilter ? (
+      {segment === 'prospect' && phaseFilter ? (
         <Pressable onPress={() => setPhaseFilter(null)} style={styles.phaseBanner}>
           <Text style={styles.phaseBannerIcon}>🎯</Text>
           <View style={{ flex: 1 }}>
@@ -137,7 +207,7 @@ export default function CustomersScreen() {
       ) : null}
 
       {/* 取引断絶検知フィルタ適用中のバナー */}
-      {dormancyFilter ? (
+      {segment === 'existing' && dormancyFilter ? (
         <Pressable onPress={() => setDormancyFilter(null)} style={styles.dormancyBanner}>
           <Text style={styles.dormancyBannerIcon}>🚨</Text>
           <View style={{ flex: 1 }}>
@@ -167,27 +237,66 @@ export default function CustomersScreen() {
         ) : null}
       </View>
 
-      {/* ステータスフィルタ */}
-      <ChipRow style={{ marginBottom: 10 }}>
-        <Chip label="すべて" count={counts.all} active={filter === 'all'} onPress={() => setFilter('all')} />
-        <Chip label="好調" count={counts.good} active={filter === 'good'} onPress={() => setFilter('good')} />
-        <Chip label="停滞" count={counts.stall} active={filter === 'stall'} onPress={() => setFilter('stall')} />
-        <Chip label="要フォロー" count={counts.follow} active={filter === 'follow'} onPress={() => setFilter('follow')} />
-      </ChipRow>
+      {segment === 'existing' ? (
+        <>
+          {/* ステータスフィルタ */}
+          <ChipRow style={{ marginBottom: 4 }}>
+            <Chip label="すべて" count={counts.all} active={filter === 'all'} onPress={() => setFilter('all')} />
+            <Chip label="好調" count={counts.good} active={filter === 'good'} onPress={() => setFilter('good')} />
+            <Chip label="停滞" count={counts.stall} active={filter === 'stall'} onPress={() => setFilter('stall')} />
+            <Chip label="要フォロー" count={counts.follow} active={filter === 'follow'} onPress={() => setFilter('follow')} />
+          </ChipRow>
+          <Pressable onPress={showStatusInfo} hitSlop={6} style={{ marginBottom: 10 }}>
+            <Text style={styles.statusInfoText}>ⓘ 好調・停滞・要フォローの基準を見る</Text>
+          </Pressable>
 
-      {/* 業種フィルタ */}
-      {bizTypes.length > 0 && (
-        <ChipRow style={{ marginBottom: 16 }}>
-          <Chip label="業種: すべて" active={bizFilter === 'all'} onPress={() => setBizFilter('all')} />
-          {bizTypes.map((t) => (
-            <Chip
-              key={`b-${t}`}
-              label={t}
-              active={bizFilter === t}
-              onPress={() => setBizFilter(bizFilter === t ? 'all' : t)}
+          {/* 業種フィルタ */}
+          {bizTypes.length > 0 && (
+            <ChipRow style={{ marginBottom: 16 }}>
+              <Chip label="業種: すべて" active={bizFilter === 'all'} onPress={() => setBizFilter('all')} />
+              {bizTypes.map((t) => (
+                <Chip
+                  key={`b-${t}`}
+                  label={t}
+                  active={bizFilter === t}
+                  onPress={() => setBizFilter(bizFilter === t ? 'all' : t)}
+                />
+              ))}
+            </ChipRow>
+          )}
+
+          {/* 並び替え */}
+          <ChipRow style={{ marginBottom: 16 }}>
+            {(Object.keys(SORT_LABEL) as SortKey[]).map((k) => (
+              <Chip key={k} label={SORT_LABEL[k]} active={sortKey === k} onPress={() => setSortKey(k)} />
+            ))}
+          </ChipRow>
+        </>
+      ) : (
+        <>
+          {/* 新規開拓: 登録ボタン + フェーズフィルタ */}
+          <View style={{ marginBottom: 12 }}>
+            <Button
+              label="＋ 新規開拓の顧客を登録"
+              variant="primary"
+              size="md"
+              fullWidth
+              onPress={() => router.push('/prospect-new')}
             />
-          ))}
-        </ChipRow>
+          </View>
+          <ChipRow style={{ marginBottom: 16 }}>
+            <Chip label="全フェーズ" count={prospects.length} active={phaseFilter === null} onPress={() => setPhaseFilter(null)} />
+            {SALES_PHASES.map((p) => (
+              <Chip
+                key={p.key}
+                label={p.label}
+                count={phaseCounts[p.key] ?? 0}
+                active={phaseFilter === p.key}
+                onPress={() => setPhaseFilter(phaseFilter === p.key ? null : p.key)}
+              />
+            ))}
+          </ChipRow>
+        </>
       )}
 
       {/* リスト */}
@@ -202,13 +311,72 @@ export default function CustomersScreen() {
           onAction={reload}
         />
       ) : list.length === 0 ? (
-        <EmptyState
-          icon="🏪"
-          title="該当する店舗がありません"
-          message="検索条件やフィルタを変えてみてください"
-          actionLabel={query ? '検索をクリア' : undefined}
-          onAction={query ? () => setQuery('') : undefined}
-        />
+        segment === 'prospect' && prospects.length === 0 ? (
+          <EmptyState
+            icon="🌱"
+            title="新規開拓の顧客はまだありません"
+            message="開拓中の見込み客を登録すると、与信→商談→サンプル→見積→発注のフェーズで進捗を追えます"
+            actionLabel="＋ 新規開拓の顧客を登録"
+            onAction={() => router.push('/prospect-new')}
+          />
+        ) : (
+          <EmptyState
+            icon="🏪"
+            title="該当する店舗がありません"
+            message="検索条件やフィルタを変えてみてください"
+            actionLabel={query ? '検索をクリア' : undefined}
+            onAction={query ? () => setQuery('') : undefined}
+          />
+        )
+      ) : segment === 'prospect' ? (
+        <View style={{ gap: 12 }}>
+          {list.map((c) => {
+            const days = daysSince(c.last_ordered_at);
+            return (
+              <Pressable
+                key={c.id}
+                onPress={() => router.push({ pathname: '/customer/[id]', params: { id: c.id } })}
+                style={styles.card}
+              >
+                <View style={styles.cardTop}>
+                  <CustomerThumb imageUrl={c.image_url} size={68} />
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
+                      <Badge
+                        label={getPhaseLabel(c.sales_phase)}
+                        tone={getPhaseTone(c.sales_phase)}
+                        size="sm"
+                      />
+                      {c.last_ordered_at ? (
+                        <Badge
+                          label={STATUS_LABEL[c.derivedStatus]}
+                          tone={STATUS_TONE[c.derivedStatus]}
+                          size="sm"
+                          dot
+                        />
+                      ) : null}
+                    </View>
+                    <Text style={styles.custName} numberOfLines={1}>
+                      {c.name}
+                      {c.branch_name ? ` ${c.branch_name}` : ''}
+                    </Text>
+                    <Text style={styles.custMeta} numberOfLines={1}>
+                      {c.business_type ?? '—'}・{c.address ?? '—'}
+                    </Text>
+                  </View>
+                  <View style={styles.daysBox}>
+                    <Text style={styles.daysValue}>{days == null ? '—' : `${days}日`}</Text>
+                    <Text style={styles.daysLabel}>{days == null ? '受注前' : '最終発注'}</Text>
+                  </View>
+                </View>
+                <View style={styles.cardBottom}>
+                  <Text style={styles.lastOrdered}>🌱 自分で開拓した新規顧客</Text>
+                  <Text style={styles.nextAction}>詳細を見る →</Text>
+                </View>
+              </Pressable>
+            );
+          })}
+        </View>
       ) : (
         <View style={{ gap: 12 }}>
           {list.map((c) => {
@@ -223,15 +391,7 @@ export default function CustomersScreen() {
                 style={[styles.card, alert && styles.cardAlert]}
               >
                 <View style={styles.cardTop}>
-                  <View style={styles.thumbWrap}>
-                    {c.image_url ? (
-                      <Image source={{ uri: c.image_url }} style={styles.thumb} contentFit="cover" />
-                    ) : (
-                      <View style={[styles.thumb, styles.thumbPlaceholder]}>
-                        <Text style={{ fontSize: 26 }}>🏪</Text>
-                      </View>
-                    )}
-                  </View>
+                  <CustomerThumb imageUrl={c.image_url} size={68} />
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
                       <Badge
@@ -257,8 +417,19 @@ export default function CustomersScreen() {
                     </Text>
                   </View>
                   <View style={styles.daysBox}>
-                    <Text style={[styles.daysValue, alert && { color: '#DC2626' }]}>{daysText}</Text>
-                    <Text style={styles.daysLabel}>最終発注</Text>
+                    {sortKey === 'sales' ? (
+                      <>
+                        <Text style={[styles.daysValue, { fontSize: 15 }]} numberOfLines={1}>
+                          {jpy(c.total_sales_jpy)}
+                        </Text>
+                        <Text style={styles.daysLabel}>累計売上</Text>
+                      </>
+                    ) : (
+                      <>
+                        <Text style={[styles.daysValue, alert && { color: '#DC2626' }]}>{daysText}</Text>
+                        <Text style={styles.daysLabel}>最終発注</Text>
+                      </>
+                    )}
                   </View>
                 </View>
                 <View style={[styles.cardBottom, alert && { borderTopColor: 'rgba(239,68,68,0.2)' }]}>
@@ -282,12 +453,24 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
   title: { fontSize: 24, fontWeight: '800', color: Ink[900], letterSpacing: -0.3 },
   subtitle: { fontSize: 12, color: Ink[500], marginTop: 4 },
-  addBtn: {
-    width: 44, height: 44, borderRadius: 22, backgroundColor: Brand.navy,
-    alignItems: 'center', justifyContent: 'center',
-    shadowColor: Brand.navyDark, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4,
+
+  segmentRow: {
+    flexDirection: 'row',
+    backgroundColor: Ink[100],
+    borderRadius: Radius.md,
+    padding: 4,
+    gap: 4,
+    marginBottom: 14,
   },
-  addBtnText: { color: '#fff', fontSize: 22, lineHeight: 24, fontWeight: '500' },
+  segmentBtn: {
+    flex: 1,
+    paddingVertical: 9,
+    borderRadius: Radius.sm,
+    alignItems: 'center',
+  },
+  segmentBtnActive: { backgroundColor: '#fff' },
+  segmentText: { fontSize: 13, fontWeight: '700', color: Ink[500] },
+  segmentTextActive: { color: Brand.navy, fontWeight: '800' },
 
   searchRow: {
     flexDirection: 'row',
@@ -337,6 +520,7 @@ const styles = StyleSheet.create({
   searchIcon: { fontSize: 14 },
   searchInput: { flex: 1, fontSize: 14, color: Ink[900], padding: 0 },
   clearIcon: { fontSize: 14, color: Ink[400], paddingHorizontal: 4 },
+  statusInfoText: { fontSize: 11, color: Ink[500], fontWeight: '600' },
 
   card: {
     backgroundColor: '#fff',
@@ -348,15 +532,6 @@ const styles = StyleSheet.create({
   cardAlert: { borderWidth: 2, borderColor: 'rgba(239,68,68,0.35)', backgroundColor: 'rgba(239,68,68,0.02)' },
   cardTop: { flexDirection: 'row', gap: 12, marginBottom: 10, alignItems: 'flex-start' },
 
-  thumbWrap: {
-    width: 68, height: 68, borderRadius: Radius.md,
-    overflow: 'hidden', backgroundColor: Ink[100],
-  },
-  thumb: { width: 68, height: 68 },
-  thumbPlaceholder: {
-    alignItems: 'center', justifyContent: 'center',
-    backgroundColor: 'rgba(30,58,95,0.04)',
-  },
 
   custName: { fontSize: 15, fontWeight: '800', color: Ink[900], marginTop: 6 },
   custMeta: { fontSize: 11, color: Ink[500], marginTop: 4 },

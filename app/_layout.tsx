@@ -73,9 +73,8 @@ export default function RootLayout() {
             <Stack.Screen name="login" />
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="customer/[id]" />
-            <Stack.Screen name="customer-new" />
             <Stack.Screen name="customer-edit/[id]" />
-            <Stack.Screen name="order-new/[customerId]" />
+            <Stack.Screen name="prospect-new" />
             <Stack.Screen name="product/[id]" />
             <Stack.Screen name="ranger/[id]" />
             <Stack.Screen name="ranger-new" />

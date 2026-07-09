@@ -22,6 +22,7 @@ export default function CustomerEditScreen() {
   const [branchName, setBranchName] = useState('');
   const [address, setAddress] = useState('');
   const [businessType, setBusinessType] = useState('');
+  const [vipsCode, setVipsCode] = useState('');
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -33,6 +34,7 @@ export default function CustomerEditScreen() {
     setBranchName(detail.branch_name ?? '');
     setAddress(detail.address ?? '');
     setBusinessType(detail.business_type ?? '');
+    setVipsCode(detail.customer_code ?? '');
     setImageUrl(detail.image_url);
   }, [detail]);
 
@@ -98,6 +100,8 @@ export default function CustomerEditScreen() {
         address: address.trim() || null,
         business_type: businessType || null,
         image_url: cleanUrl,
+        // VIPS店舗コードは新規開拓顧客のみ編集可（既存顧客はVIPS取込みのキーなので触らない）
+        ...(detail?.acquired_by_ranger_id ? { customer_code: vipsCode.trim() || null } : {}),
       })
       .eq('id', id);
 
@@ -172,6 +176,24 @@ export default function CustomerEditScreen() {
         <TextInput value={address} onChangeText={setAddress} placeholderTextColor={Ink[400]} style={styles.input} />
       </View>
 
+      {/* VIPS店舗コード（新規開拓顧客のみ） */}
+      {detail?.acquired_by_ranger_id ? (
+        <View style={styles.field}>
+          <Text style={styles.label}>VIPS店舗コード</Text>
+          <TextInput
+            value={vipsCode}
+            onChangeText={setVipsCode}
+            placeholder="成約してVIPSに登録されたら入力"
+            placeholderTextColor={Ink[400]}
+            style={styles.input}
+            autoCapitalize="characters"
+          />
+          <Text style={styles.hint}>
+            💡 コードを入力すると、VIPSの売上取込みでこの顧客に売上が自動で紐づきます（初回発注でフェーズも「発注」へ自動更新）
+          </Text>
+        </View>
+      ) : null}
+
       <SectionTitle title="業種" />
       <View style={styles.chipRow}>
         {BUSINESS_TYPES.map((t) => (
@@ -240,6 +262,7 @@ const styles = StyleSheet.create({
 
   field: { marginBottom: 14 },
   label: { fontSize: 12, color: Ink[700], fontWeight: '700', marginBottom: 8 },
+  hint: { fontSize: 10, color: Ink[500], marginTop: 6, lineHeight: 15 },
   required: { color: '#EF4444', fontWeight: '900' },
   input: {
     backgroundColor: '#fff',
