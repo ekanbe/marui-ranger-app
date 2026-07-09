@@ -1,5 +1,4 @@
 import { Image } from 'expo-image';
-import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -8,25 +7,25 @@ import { Badge } from '@/components/ui/Badge';
 import { Chip, ChipRow } from '@/components/ui/Chip';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ShimmerList } from '@/components/ui/Shimmer';
-import { Accent, Brand, Ink, Radius } from '@/constants/theme';
-import { useProducts } from '@/hooks/use-products';
+import { Accent, Ink, Radius } from '@/constants/theme';
+import { useCostCatalog } from '@/hooks/use-cost-catalog';
 import { jpy } from '@/lib/format';
 
 export default function ProductsScreen() {
-  const { products, loading, error, reload } = useProducts();
+  const { items, loading, error, reload } = useCostCatalog();
   const [query, setQuery] = useState('');
   const [cat, setCat] = useState<string>('all');
 
   const categories = useMemo(() => {
     const set = new Set<string>();
-    products.forEach((p) => { if (p.category) set.add(p.category); });
+    items.forEach((p) => { if (p.category) set.add(p.category); });
     return Array.from(set).sort();
-  }, [products]);
+  }, [items]);
 
-  const list = products.filter(
+  const list = items.filter(
     (p) =>
       (cat === 'all' || p.category === cat) &&
-      (query === '' || `${p.name}${p.maker_name}${p.category ?? ''}`.includes(query))
+      (query === '' || `${p.name}${p.maker ?? ''}${p.category ?? ''}`.includes(query))
   );
 
   return (
@@ -34,7 +33,7 @@ export default function ProductsScreen() {
       <View style={styles.header}>
         <View>
           <Text style={styles.title}>商品カタログ</Text>
-          <Text style={styles.subtitle}>悲鳴を解く {products.length} 商品</Text>
+          <Text style={styles.subtitle}>原価表 {items.length} 商品</Text>
         </View>
       </View>
 
@@ -56,14 +55,14 @@ export default function ProductsScreen() {
 
       {categories.length > 0 && (
         <ChipRow style={{ marginBottom: 16 }}>
-          <Chip label="すべて" active={cat === 'all'} onPress={() => setCat('all')} count={products.length} />
+          <Chip label="すべて" active={cat === 'all'} onPress={() => setCat('all')} count={items.length} />
           {categories.map((c) => (
             <Chip
               key={c}
               label={c}
               active={cat === c}
               onPress={() => setCat(cat === c ? 'all' : c)}
-              count={products.filter((p) => p.category === c).length}
+              count={items.filter((p) => p.category === c).length}
             />
           ))}
         </ChipRow>
@@ -86,55 +85,40 @@ export default function ProductsScreen() {
           message="別のキーワードやカテゴリで試してみてください"
         />
       ) : (
-        <View style={{ gap: 14 }}>
+        <View style={{ gap: 10 }}>
           {list.map((p) => (
-            <Pressable
-              key={p.id}
-              onPress={() => router.push({ pathname: '/product/[id]', params: { id: p.id } })}
-              style={({ pressed }) => [styles.card, pressed && { opacity: 0.85 }]}
-            >
-              <View style={styles.top}>
-                <View style={styles.imageWrap}>
-                  {p.image_url ? (
-                    <Image source={{ uri: p.image_url }} style={styles.image} contentFit="cover" />
-                  ) : (
-                    <View style={[styles.image, styles.imagePlaceholder]}>
-                      <Text style={{ fontSize: 28 }}>📦</Text>
-                    </View>
-                  )}
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.maker}>{p.maker_name}</Text>
-                  <Text style={styles.pname} numberOfLines={2}>{p.name}</Text>
-                  <View style={styles.metaRow}>
-                    {p.category ? <Badge label={p.category} tone="navy" /> : null}
-                  </View>
-                  <Text style={styles.price}>{jpy(p.unit_price_jpy)}</Text>
-                </View>
+            <View key={p.id} style={styles.card}>
+              <View style={styles.thumbWrap}>
+                {p.image_url ? (
+                  <Image source={{ uri: p.image_url }} style={styles.thumb} contentFit="contain" />
+                ) : (
+                  <Text style={{ fontSize: 22 }}>📦</Text>
+                )}
               </View>
-
-              {p.pain_solution ? (
-                <View style={styles.painBox}>
-                  <Text style={styles.painLabel}>💡 解決する悲鳴</Text>
-                  <Text style={styles.painText}>{p.pain_solution}</Text>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={styles.pname} numberOfLines={2}>{p.name}</Text>
+                <View style={styles.metaRow}>
+                  {p.category ? <Badge label={p.category} tone="navy" /> : null}
                 </View>
-              ) : null}
-
-              {p.pitch_script ? (
-                <View style={styles.pitchBox}>
-                  <Text style={styles.pitchLabel}>🎤 提案トーク</Text>
-                  <Text style={styles.pitchText} numberOfLines={3}>{p.pitch_script}</Text>
-                </View>
-              ) : null}
-
-              {p.solves_pain.length > 0 && (
-                <View style={styles.tagRow}>
-                  {p.solves_pain.map((t) => (
-                    <Badge key={t} label={t} tone="red" />
-                  ))}
-                </View>
-              )}
-            </Pressable>
+                {p.units_per_case ? (
+                  <Text style={styles.caseInfo}>
+                    {p.balls_per_case != null && p.units_per_ball != null
+                      ? `${p.balls_per_case}BL × ${p.units_per_ball}個 ＝ ${p.units_per_case}バラ/ｹｰｽ`
+                      : `${p.units_per_case}バラ/ｹｰｽ`}
+                  </Text>
+                ) : null}
+              </View>
+              <View style={styles.costBox}>
+                <Text style={styles.cost}>{jpy(p.cost_price_jpy)}</Text>
+                <Text style={styles.costUnit}>バラ原価</Text>
+                {p.case_cost_jpy != null ? (
+                  <>
+                    <Text style={styles.caseCost}>{jpy(p.case_cost_jpy)}</Text>
+                    <Text style={styles.costUnit}>ケース原価</Text>
+                  </>
+                ) : null}
+              </View>
+            </View>
           ))}
         </View>
       )}
@@ -157,50 +141,26 @@ const styles = StyleSheet.create({
   clearIcon: { fontSize: 14, color: Ink[400], paddingHorizontal: 4 },
 
   card: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
     backgroundColor: '#fff',
     borderRadius: Radius.lg,
-    padding: 16,
+    padding: 14,
     borderWidth: 1,
     borderColor: Ink[100],
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 3, elevation: 1,
   },
-  top: { flexDirection: 'row', gap: 14, marginBottom: 12 },
-  imageWrap: {
-    width: 92,
-    height: 92,
-    borderRadius: Radius.md,
-    overflow: 'hidden',
-    backgroundColor: Ink[50],
+  thumbWrap: {
+    width: 52, height: 52, borderRadius: Radius.sm, overflow: 'hidden',
+    backgroundColor: Ink[50], alignItems: 'center', justifyContent: 'center',
   },
-  image: { width: 92, height: 92 },
-  imagePlaceholder: { alignItems: 'center', justifyContent: 'center' },
-
-  maker: { fontSize: 10, color: Ink[500], letterSpacing: 0.5, fontWeight: '700', textTransform: 'uppercase' },
-  pname: { fontSize: 15, fontWeight: '800', color: Ink[900], marginTop: 4, lineHeight: 20 },
-  metaRow: { flexDirection: 'row', gap: 6, marginTop: 6 },
-  price: { fontSize: 20, fontWeight: '800', color: Ink[900], marginTop: 6, letterSpacing: -0.3 },
-
-  painBox: {
-    backgroundColor: 'rgba(239,68,68,0.05)',
-    borderLeftWidth: 3,
-    borderLeftColor: Accent.red,
-    borderRadius: Radius.sm,
-    padding: 12,
-    marginBottom: 10,
-  },
-  painLabel: { fontSize: 10, color: '#DC2626', fontWeight: '800', letterSpacing: 0.5 },
-  painText: { fontSize: 13, color: Ink[900], marginTop: 4, lineHeight: 18 },
-
-  pitchBox: {
-    backgroundColor: 'rgba(30,58,95,0.04)',
-    borderLeftWidth: 3,
-    borderLeftColor: Brand.navy,
-    borderRadius: Radius.sm,
-    padding: 12,
-    marginBottom: 10,
-  },
-  pitchLabel: { fontSize: 10, color: Ink[900], fontWeight: '800', letterSpacing: 0.5 },
-  pitchText: { fontSize: 12, color: Ink[700], marginTop: 4, lineHeight: 17 },
-
-  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  thumb: { width: 52, height: 52 },
+  pname: { fontSize: 14, fontWeight: '800', color: Ink[900], lineHeight: 19 },
+  metaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 },
+  caseInfo: { fontSize: 10, color: Ink[500], marginTop: 5, fontWeight: '600' },
+  costBox: { alignItems: 'flex-end' },
+  cost: { fontSize: 15, fontWeight: '900', color: Accent.red, letterSpacing: -0.3 },
+  caseCost: { fontSize: 13, fontWeight: '800', color: Ink[800], letterSpacing: -0.2, marginTop: 4 },
+  costUnit: { fontSize: 9, color: Ink[400], fontWeight: '700', marginTop: 1 },
 });
