@@ -26,8 +26,9 @@ import { type HomeKpis, useHomeKpis } from '@/hooks/use-home-kpis';
 import { useMyRanger } from '@/hooks/use-my-ranger';
 import { useProfile } from '@/hooks/use-profile';
 import { useRanking } from '@/hooks/use-ranking';
+import { useRecentMeetingNotes } from '@/hooks/use-recent-meeting-notes';
 import { useTodayTasks } from '@/hooks/use-today-tasks';
-import { jpy, pct } from '@/lib/format';
+import { jpy, pct, shortDate } from '@/lib/format';
 import { SALES_PHASES } from '@/lib/sales-phase';
 
 // 実データ未取得時のゼロ表示用（モックへのフォールバックはしない）
@@ -443,6 +444,7 @@ export default function HomeScreen() {
   const { customers, loading: customersLoading, error: customersError, reload: reloadCustomers } = useCustomers();
   const { tasks: allTasks, addCustomTask, completeCustomTask, dismissFollowTask, excludeFollowTask } =
     useTodayTasks(session);
+  const { notes: recentNotes } = useRecentMeetingNotes(session, 5);
 
   function confirmExcludeFollow(customerId: string, title: string) {
     const name = title.replace(/をフォロー$/, '');
@@ -922,6 +924,35 @@ export default function HomeScreen() {
         </View>
       )}
 
+      {/* 最近の商談ログ */}
+      {recentNotes.length > 0 ? (
+        <>
+          <SectionTitle title="最近の商談ログ" caption="直近の議事録・タップで顧客へ" />
+          <View style={{ gap: 10 }}>
+            {recentNotes.map((n) => (
+              <Pressable
+                key={n.id}
+                onPress={() => router.push({ pathname: '/customer/[id]', params: { id: n.customer_id } })}
+                style={styles.noteCard}
+              >
+                <View style={styles.noteHeader}>
+                  <Text style={styles.noteDate}>{shortDate(n.met_at)}</Text>
+                  <Text style={styles.noteCustomer} numberOfLines={1}>
+                    {n.customer_name}
+                    {n.branch_name ? ` ${n.branch_name}` : ''}
+                  </Text>
+                </View>
+                {n.title ? <Text style={styles.noteTitle} numberOfLines={1}>{n.title}</Text> : null}
+                <Text style={styles.noteBody} numberOfLines={2}>{n.body}</Text>
+                {n.next_action ? (
+                  <Text style={styles.noteNext} numberOfLines={1}>→ {n.next_action}</Text>
+                ) : null}
+              </Pressable>
+            ))}
+          </View>
+        </>
+      ) : null}
+
       <AddTodayTaskModal
         open={addTaskOpen}
         onClose={() => setAddTaskOpen(false)}
@@ -1056,6 +1087,20 @@ const styles = StyleSheet.create({
   taskDone: { fontSize: 11, color: Accent.emerald, fontWeight: '800' },
   taskActions: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   taskExclude: { fontSize: 11, color: Ink[400], fontWeight: '700' },
+
+  noteCard: {
+    backgroundColor: '#fff',
+    borderRadius: Radius.md,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: Ink[100],
+  },
+  noteHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
+  noteDate: { fontSize: 11, color: Ink[500], fontWeight: '800' },
+  noteCustomer: { fontSize: 12, fontWeight: '800', color: Brand.navy, flex: 1 },
+  noteTitle: { fontSize: 13, fontWeight: '800', color: Ink[900], marginBottom: 2 },
+  noteBody: { fontSize: 12, color: Ink[700], lineHeight: 17 },
+  noteNext: { fontSize: 11, color: Brand.gold, fontWeight: '700', marginTop: 6 },
 
   // Admin ranger rows
   rangerRow: {
