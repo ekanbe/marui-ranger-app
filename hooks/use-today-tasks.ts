@@ -94,16 +94,26 @@ export function useTodayTasks(session: Session | null) {
   const reload = useCallback(() => setReloadKey((k) => k + 1), []);
 
   const addCustomTask = useCallback(
-    async (params: { customerId?: string | null; title: string; note?: string | null }) => {
+    async (params: {
+      customerId?: string | null;
+      title: string;
+      note?: string | null;
+      day?: 'today' | 'tomorrow';
+    }) => {
       if (!session) return { ok: false, error: '未ログイン' };
       const { data: tenant } = await supabase.from('tenants').select('id').limit(1).maybeSingle();
       if (!tenant) return { ok: false, error: 'tenant_id が取得できません' };
+      // 前日の夜に「明日やること」として仕込める(松永さんFB 2026-07-10)
+      const target = new Date();
+      if (params.day === 'tomorrow') target.setDate(target.getDate() + 1);
+      const targetDate = `${target.getFullYear()}-${String(target.getMonth() + 1).padStart(2, '0')}-${String(target.getDate()).padStart(2, '0')}`;
       const { error } = await supabase.from('custom_today_tasks').insert({
         tenant_id: tenant.id,
         ranger_id: session.user.id,
         customer_id: params.customerId ?? null,
         title: params.title,
         note: params.note ?? null,
+        target_date: targetDate,
       });
       if (error) return { ok: false, error: error.message };
       reload();
