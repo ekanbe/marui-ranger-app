@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { TextInput, type TextInputProps } from 'react-native';
 
 type Props = TextInputProps & {
-  /** 最小の高さ(px)。デフォルト70 */
+  /** 最小の高さ(px)。デフォルト44(1行分の通常入力欄と同じ高さ) */
   minHeight?: number;
   /** これ以上は伸びない上限(px)。デフォルト600 */
   maxHeight?: number;
@@ -16,7 +16,7 @@ type Props = TextInputProps & {
  * scrollEnabled=false で内部スクロールを殺し、欄自体を伸ばして
  * ページ側のスクロールに任せることでカーソルが常に見える。
  */
-export function AutoGrowTextInput({ minHeight = 70, maxHeight = 600, style, ...rest }: Props) {
+export function AutoGrowTextInput({ minHeight = 44, maxHeight = 600, style, ...rest }: Props) {
   const [height, setHeight] = useState(minHeight);
   return (
     <TextInput

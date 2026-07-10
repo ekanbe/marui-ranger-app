@@ -180,7 +180,7 @@ export default function MeetingNoteNewScreen() {
           placeholder="話した内容・決まったこと・先方の反応など"
           placeholderTextColor={Ink[400]}
           style={styles.input}
-          minHeight={150}
+          minHeight={44}
         />
       </View>
 
@@ -192,7 +192,7 @@ export default function MeetingNoteNewScreen() {
           placeholder="例: 来週サンプル持参・見積提出"
           placeholderTextColor={Ink[400]}
           style={styles.input}
-          minHeight={70}
+          minHeight={44}
         />
       </View>
 

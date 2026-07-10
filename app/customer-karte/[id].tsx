@@ -381,7 +381,7 @@ export default function CustomerKarteEditScreen() {
           placeholder="例: ドリンク原価を下げたい / 通年商品を探している"
           placeholderTextColor={Ink[400]}
           style={styles.input}
-          minHeight={70}
+          minHeight={44}
         />
       </View>
 
@@ -394,7 +394,7 @@ export default function CustomerKarteEditScreen() {
           placeholder="その他、提案・交渉に役立つ情報"
           placeholderTextColor={Ink[400]}
           style={styles.input}
-          minHeight={110}
+          minHeight={44}
         />
       </View>
 

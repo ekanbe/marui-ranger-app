@@ -150,7 +150,7 @@ export default function ProspectNewScreen() {
           placeholder="きっかけ・紹介元・温度感など"
           placeholderTextColor={Ink[400]}
           style={styles.input}
-          minHeight={70}
+          minHeight={44}
         />
       </View>
 
