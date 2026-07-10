@@ -1,6 +1,8 @@
+import { Image } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Platform, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Screen } from '@/components/ranger/Screen';
 import { AutoGrowTextInput } from '@/components/ui/AutoGrowTextInput';
@@ -10,6 +12,7 @@ import { Ink, Radius } from '@/constants/theme';
 import { useAuth } from '@/hooks/use-auth';
 import { useCustomerDetail } from '@/hooks/use-customer-detail';
 import { addMeetingNote } from '@/hooks/use-meeting-notes';
+import { supabase } from '@/lib/supabase';
 
 function todayISO(): string {
   const d = new Date();
@@ -29,9 +32,57 @@ export default function MeetingNoteNewScreen() {
   const [attendees, setAttendees] = useState('');
   const [body, setBody] = useState('');
   const [nextAction, setNextAction] = useState('');
+  const [imageUrls, setImageUrls] = useState<string[]>([]);
 
   const [submitting, setSubmitting] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  async function pickImages() {
+    if (!customerId) return;
+    try {
+      setError(null);
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        setError('写真ライブラリへのアクセスが拒否されました');
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsMultipleSelection: true,
+        selectionLimit: 6,
+        quality: 0.7,
+      });
+      if (result.canceled || !result.assets?.length) return;
+
+      setUploading(true);
+      const uploaded: string[] = [];
+      for (const asset of result.assets) {
+        const response = await fetch(asset.uri);
+        const blob = await response.blob();
+        const ext = (asset.mimeType ?? blob.type).includes('png') ? 'png' : 'jpg';
+        const contentType = ext === 'png' ? 'image/png' : 'image/jpeg';
+        const path = `${customerId}/note-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+
+        const { error: upErr } = await supabase.storage
+          .from('meeting-note-images')
+          .upload(path, blob, { contentType, upsert: true });
+        if (upErr) throw upErr;
+
+        const { data: pub } = supabase.storage.from('meeting-note-images').getPublicUrl(path);
+        uploaded.push(pub.publicUrl);
+      }
+      setImageUrls((prev) => [...prev, ...uploaded]);
+    } catch (e: any) {
+      setError(e?.message ?? '写真のアップロードに失敗しました');
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  function removeImage(url: string) {
+    setImageUrls((prev) => prev.filter((u) => u !== url));
+  }
 
   const bodyEmpty = body.trim().length === 0;
   const dateValid = /^\d{4}-\d{2}-\d{2}$/.test(metAt.trim());
@@ -57,6 +108,7 @@ export default function MeetingNoteNewScreen() {
           attendees: attendees.trim() || null,
           body: body.trim(),
           next_action: nextAction.trim() || null,
+          image_urls: imageUrls,
         },
         session?.user.id ?? null,
       );
@@ -144,6 +196,32 @@ export default function MeetingNoteNewScreen() {
         />
       </View>
 
+      {/* 写真添付 */}
+      <SectionTitle title="写真" caption="メニュー・一括表示・店舗外観など(6枚まで)" />
+      {imageUrls.length > 0 ? (
+        <View style={styles.photoGrid}>
+          {imageUrls.map((url) => (
+            <View key={url} style={styles.photoWrap}>
+              <Image source={{ uri: url }} style={styles.photo} contentFit="cover" />
+              <Pressable onPress={() => removeImage(url)} style={styles.photoRemove} hitSlop={6}>
+                <Text style={styles.photoRemoveText}>✕</Text>
+              </Pressable>
+            </View>
+          ))}
+        </View>
+      ) : null}
+      <View style={styles.field}>
+        <Button
+          label={uploading ? 'アップロード中...' : '📷 写真を追加'}
+          variant="secondary"
+          size="md"
+          fullWidth
+          onPress={pickImages}
+          disabled={uploading || imageUrls.length >= 6}
+          loading={uploading}
+        />
+      </View>
+
       {error ? <Text style={styles.error}>エラー: {error}</Text> : null}
 
       <View style={{ marginTop: 20 }}>
@@ -180,6 +258,22 @@ const styles = StyleSheet.create({
   },
   multiline: { minHeight: 70, textAlignVertical: 'top' },
   multilineLarge: { minHeight: 150, textAlignVertical: 'top' },
+
+  photoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
+  photoWrap: { position: 'relative' },
+  photo: { width: 92, height: 92, borderRadius: Radius.sm, backgroundColor: Ink[100] },
+  photoRemove: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: Ink[900],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  photoRemoveText: { color: '#fff', fontSize: 11, fontWeight: '800' },
 
   error: {
     color: '#DC2626',

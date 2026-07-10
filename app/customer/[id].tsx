@@ -449,6 +449,13 @@ export default function CustomerDetailScreen() {
               </View>
               {n.attendees ? <Text style={styles.noteAttendees}>👤 {n.attendees}</Text> : null}
               <Text style={styles.noteBody}>{n.body}</Text>
+              {Array.isArray(n.image_urls) && n.image_urls.length > 0 ? (
+                <View style={styles.notePhotoRow}>
+                  {n.image_urls.map((url) => (
+                    <Image key={url} source={{ uri: url }} style={styles.notePhoto} contentFit="cover" />
+                  ))}
+                </View>
+              ) : null}
               {n.next_action ? (
                 <View style={styles.nextActionBox}>
                   <Text style={styles.nextActionLabel}>次アクション</Text>
@@ -676,6 +683,8 @@ const styles = StyleSheet.create({
   noteDelete: { fontSize: 11, color: Ink[400], fontWeight: '700' },
   noteAttendees: { fontSize: 11, color: Ink[600], marginBottom: 6 },
   noteBody: { fontSize: 13, color: Ink[800], lineHeight: 19 },
+  notePhotoRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },
+  notePhoto: { width: 84, height: 84, borderRadius: Radius.sm, backgroundColor: Ink[100] },
   nextActionBox: {
     marginTop: 10,
     padding: 10,

@@ -10,6 +10,7 @@ export type MeetingNote = {
   attendees: string | null;
   body: string;
   next_action: string | null;
+  image_urls: string[];
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -22,6 +23,7 @@ export type MeetingNoteInput = {
   attendees: string | null;
   body: string;
   next_action: string | null;
+  image_urls: string[];
 };
 
 export function useMeetingNotes(customerId: string | undefined) {
