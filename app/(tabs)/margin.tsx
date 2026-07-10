@@ -114,6 +114,9 @@ export default function MarginScreen() {
         <Text style={styles.heroSub}>
           {estimatedMarginDeltaJpy >= 0 ? '↑' : '↓'} {jpy(Math.abs(estimatedMarginDeltaJpy))}（前月比）
         </Text>
+        {kpis?.salesDataAsOf ? (
+          <Text style={styles.heroAsOf}>売上データ: {shortDate(kpis.salesDataAsOf)} 時点</Text>
+        ) : null}
       </HeroCard>
 
       <View style={styles.grid}>
@@ -204,6 +207,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 24, fontWeight: '800', color: Ink[900], marginBottom: 16, letterSpacing: -0.3 },
 
   heroSub: { color: '#A7F3D0', marginTop: 10, fontSize: 13, fontWeight: '700' },
+  heroAsOf: { color: 'rgba(255,255,255,0.55)', fontSize: 10, marginTop: 6, fontWeight: '600' },
 
   grid: { flexDirection: 'row', gap: 10, marginBottom: 18 },
 

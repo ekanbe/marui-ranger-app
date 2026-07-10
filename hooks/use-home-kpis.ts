@@ -21,6 +21,8 @@ export type HomeKpis = {
   remainingToGoalJpy: number;
   monthlyTrend: { month: string; sales: number }[];
   marginTrend: { month: string; margin: number }[];
+  /** VIPS売上の最終取込み日(最新のordered_at)。手動バッチなので「◯日時点」を画面に出す */
+  salesDataAsOf: string | null;
 };
 
 type SummaryRow = {
@@ -56,7 +58,7 @@ export function useHomeKpis(session: Session | null) {
       setLoading(true);
       setError(null);
 
-      const [summary, goal] = await Promise.all([
+      const [summary, goal, latestVips] = await Promise.all([
         supabase
           .from('v_ranger_monthly_summary')
           .select('month, sales_jpy, ranger_commission_jpy, paid_commission_jpy, order_count')
@@ -66,6 +68,13 @@ export function useHomeKpis(session: Session | null) {
           .from('rangers')
           .select('monthly_goal_jpy')
           .eq('id', userId)
+          .maybeSingle(),
+        supabase
+          .from('orders')
+          .select('ordered_at')
+          .eq('source', 'vips')
+          .order('ordered_at', { ascending: false })
+          .limit(1)
           .maybeSingle(),
       ]);
 
@@ -133,6 +142,7 @@ export function useHomeKpis(session: Session | null) {
         remainingToGoalJpy: Math.max(0, monthlyGoal - monthSales),
         monthlyTrend,
         marginTrend,
+        salesDataAsOf: (latestVips.data as { ordered_at?: string } | null)?.ordered_at ?? null,
       });
       setLoading(false);
     })();

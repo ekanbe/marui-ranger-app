@@ -47,6 +47,7 @@ const ZERO_KPIS: HomeKpis = {
   remainingToGoalJpy: 0,
   monthlyTrend: [],
   marginTrend: [],
+  salesDataAsOf: null,
 };
 
 // ============================================================
@@ -596,6 +597,9 @@ export default function HomeScreen() {
         <Text style={styles.goalRemaining}>
           あと <Text style={styles.goalRemainingStrong}>{jpy(k.remainingToGoalJpy)}</Text> で達成
         </Text>
+        {k.salesDataAsOf ? (
+          <Text style={styles.heroAsOf}>売上データ: {shortDate(k.salesDataAsOf)} 時点</Text>
+        ) : null}
       </HeroCard>
 
       {/* クイックアクション（横スクロールチップ） */}
@@ -1021,6 +1025,7 @@ const styles = StyleSheet.create({
   goalText: { color: 'rgba(255,255,255,0.7)', fontSize: 12 },
   goalPct: { color: '#fff', fontSize: 13, fontWeight: '800' },
   goalRemaining: { color: 'rgba(255,255,255,0.7)', fontSize: 11, marginTop: 8 },
+  heroAsOf: { color: 'rgba(255,255,255,0.55)', fontSize: 10, marginTop: 8, fontWeight: '600' },
   goalRemainingStrong: { color: '#fff', fontWeight: '800' },
   heroBottomRow: { flexDirection: 'row', justifyContent: 'space-between' },
   heroBottomLabel: { color: 'rgba(255,255,255,0.55)', fontSize: 10, letterSpacing: 1 },
