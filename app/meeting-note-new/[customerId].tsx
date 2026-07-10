@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Alert, Platform, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Screen } from '@/components/ranger/Screen';
+import { AutoGrowTextInput } from '@/components/ui/AutoGrowTextInput';
 import { Button } from '@/components/ui/Button';
 import { SectionTitle } from '@/components/ui/SectionTitle';
 import { Ink, Radius } from '@/constants/theme';
@@ -121,25 +122,25 @@ export default function MeetingNoteNewScreen() {
 
       <View style={styles.field}>
         <Text style={styles.label}>本文</Text>
-        <TextInput
+        <AutoGrowTextInput
           value={body}
           onChangeText={setBody}
           placeholder="話した内容・決まったこと・先方の反応など"
           placeholderTextColor={Ink[400]}
-          style={[styles.input, styles.multilineLarge]}
-          multiline
+          style={styles.input}
+          minHeight={150}
         />
       </View>
 
       <View style={styles.field}>
         <Text style={styles.label}>次アクション（任意）</Text>
-        <TextInput
+        <AutoGrowTextInput
           value={nextAction}
           onChangeText={setNextAction}
           placeholder="例: 来週サンプル持参・見積提出"
           placeholderTextColor={Ink[400]}
-          style={[styles.input, styles.multiline]}
-          multiline
+          style={styles.input}
+          minHeight={70}
         />
       </View>
 

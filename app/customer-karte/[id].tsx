@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Alert, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Screen } from '@/components/ranger/Screen';
+import { AutoGrowTextInput } from '@/components/ui/AutoGrowTextInput';
 import { Button } from '@/components/ui/Button';
 import { SectionTitle } from '@/components/ui/SectionTitle';
 import { ShimmerCard } from '@/components/ui/Shimmer';
@@ -374,26 +375,26 @@ export default function CustomerKarteEditScreen() {
 
       <View style={styles.field}>
         <Text style={styles.label}>提案ニーズ・課題</Text>
-        <TextInput
+        <AutoGrowTextInput
           value={needsNote}
           onChangeText={setNeedsNote}
           placeholder="例: ドリンク原価を下げたい / 通年商品を探している"
           placeholderTextColor={Ink[400]}
-          style={[styles.input, styles.multiline]}
-          multiline
+          style={styles.input}
+          minHeight={70}
         />
       </View>
 
       {/* ── メモ ── */}
       <SectionTitle title="メモ" />
       <View style={styles.field}>
-        <TextInput
+        <AutoGrowTextInput
           value={freeNote}
           onChangeText={setFreeNote}
           placeholder="その他、提案・交渉に役立つ情報"
           placeholderTextColor={Ink[400]}
-          style={[styles.input, styles.multilineLarge]}
-          multiline
+          style={styles.input}
+          minHeight={110}
         />
       </View>
 

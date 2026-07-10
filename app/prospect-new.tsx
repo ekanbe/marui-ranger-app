@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Alert, Platform, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Screen } from '@/components/ranger/Screen';
+import { AutoGrowTextInput } from '@/components/ui/AutoGrowTextInput';
 import { Button } from '@/components/ui/Button';
 import { SectionTitle } from '@/components/ui/SectionTitle';
 import { Ink, Radius } from '@/constants/theme';
@@ -143,13 +144,13 @@ export default function ProspectNewScreen() {
 
       <View style={styles.field}>
         <Text style={styles.label}>メモ（任意）</Text>
-        <TextInput
+        <AutoGrowTextInput
           value={note}
           onChangeText={setNote}
           placeholder="きっかけ・紹介元・温度感など"
           placeholderTextColor={Ink[400]}
-          style={[styles.input, styles.multiline]}
-          multiline
+          style={styles.input}
+          minHeight={70}
         />
       </View>
 
