@@ -42,7 +42,8 @@ const TONE: Record<Tone, { bg: string; fg: string }> = {
 };
 
 export function Badge({ label, tone = 'neutral', size = 'sm', dot, style }: Props) {
-  const t = TONE[tone];
+  // tone に null や未知の値が渡ってもクラッシュさせない(ランクNULLでadminホームが落ちた2026-07-09の対策)
+  const t = TONE[tone] ?? TONE.neutral;
   const sStyle = size === 'md' ? styles.md : styles.sm;
   return (
     <View style={[styles.base, sStyle, { backgroundColor: t.bg }, style]}>

@@ -369,7 +369,9 @@ function AdminDashboard({ displayName, avatarUrl }: { displayName: string; avata
                 <Text style={styles.rangerNumber}>レンジャー{r.ranger_number}号</Text>
                 <Text style={styles.rangerName}>{r.display_name}</Text>
                 <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginTop: 2 }}>
-                  <Badge label={rankLabel(r.current_rank)} tone={r.current_rank as any} />
+                  {r.current_rank ? (
+                    <Badge label={rankLabel(r.current_rank)} tone={r.current_rank as any} />
+                  ) : null}
                   {!r.is_active_this_month ? <Badge label="今月未稼働" tone="amber" /> : null}
                 </View>
               </View>

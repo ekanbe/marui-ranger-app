@@ -98,7 +98,9 @@ export default function RangersScreen() {
                     <Text style={styles.numberLabel}>{r.ranger_code || `レンジャー${r.ranger_number}号`}</Text>
                     <Text style={styles.name}>{r.display_name}</Text>
                     <View style={{ marginTop: 4, flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
-                      <Badge label={rankLabel(r.current_rank)} tone={r.current_rank as any} />
+                      {r.current_rank ? (
+                        <Badge label={rankLabel(r.current_rank)} tone={r.current_rank as any} />
+                      ) : null}
                       {isInactive ? <Badge label="今月未稼働" tone="amber" /> : null}
                     </View>
                   </View>
